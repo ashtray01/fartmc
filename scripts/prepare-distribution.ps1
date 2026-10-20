@@ -72,7 +72,8 @@ try {
 
     Copy-Item $jars[0].FullName dist/ -Force
     Copy-Item LICENSE, NOTICE.md dist/ -Force
-    & git archive --format=zip --output=dist/fartmc-source.zip HEAD
+    # Keep archived sources identical to the committed LF blobs on Windows too.
+    & git -c core.autocrlf=false archive --format=zip --output=dist/fartmc-source.zip HEAD
     if ($LASTEXITCODE -ne 0) { throw 'Source archive creation failed.' }
     $sums = foreach ($path in @("dist/$($jars[0].Name)",'dist/fartmc-source.zip','dist/fartmc-sounds.zip')) {
         $hash = (Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant()
