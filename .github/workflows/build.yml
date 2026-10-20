@@ -36,7 +36,7 @@ jobs:
         run: ./scripts/build-public-pack.ps1
       - name: Prepare and verify distribution
         shell: pwsh
-        run: ./scripts/test-distribution.ps1
+        run: ./scripts/prepare-distribution.ps1
       - name: Upload plugin and corresponding source
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

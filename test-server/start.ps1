@@ -19,7 +19,8 @@ if (!$JavaHome -or !(Test-Path "$JavaHome/bin/java.exe")) { throw 'Install Java 
 if (!$SkipBuild) { & "$root/scripts/build.ps1" -JavaHome $JavaHome }
 $plugin = Join-Path $root 'target/fartplugin-2.0.0.jar'
 if (!(Test-Path $plugin)) { throw 'Build plugin first.' }
-$runtime = Join-Path $PSScriptRoot "runtime-$Version"
+$runtimeName = if ($Smoke) { "runtime-$Version-smoke" } else { "runtime-$Version" }
+$runtime = Join-Path $PSScriptRoot $runtimeName
 New-Item -ItemType Directory -Force "$runtime/plugins" | Out-Null
 if ($AcceptEula) { Set-Content "$runtime/eula.txt" 'eula=true' -Encoding ASCII }
 if (!(Test-Path "$runtime/eula.txt") -or !(Select-String -Path "$runtime/eula.txt" -Pattern '^eula=true$' -Quiet)) {
@@ -45,6 +46,15 @@ if ($WithSounds) {
     Copy-Item "$root/dist/fartmc-sounds.zip" "$runtime/plugins/FartPlugin/resource-pack.zip" -Force
 }
 Copy-Item "$PSScriptRoot/server.properties" "$runtime/server.properties" -Force
+if ($Smoke) {
+    # Never share worlds, logs, settings or listening ports with an interactive server.
+    Add-Content "$runtime/server.properties" 'server-port=25566' -Encoding ASCII
+    New-Item -ItemType Directory -Force "$runtime/plugins/FartPlugin" | Out-Null
+    $config = (Get-Content "$root/src/main/resources/config.yml" -Raw).
+        Replace('port: 8123', 'port: 8124').
+        Replace('http://127.0.0.1:8123/', 'http://127.0.0.1:8124/')
+    [IO.File]::WriteAllText("$runtime/plugins/FartPlugin/config.yml", $config, [Text.UTF8Encoding]::new($false))
+}
 if (!$Smoke) {
     Push-Location $runtime
     try { & "$JavaHome/bin/java.exe" -Xms512M -Xmx1536M -jar paper.jar --nogui }
@@ -81,7 +91,7 @@ try {
         $downloaded = Join-Path $runtime 'smoke-pack.zip'
         $client = New-Object System.Net.WebClient
         $client.Proxy = $null
-        try { $client.DownloadFile('http://127.0.0.1:8123/fartmc.zip', $downloaded) }
+        try { $client.DownloadFile('http://127.0.0.1:8124/fartmc.zip', $downloaded) }
         finally { $client.Dispose() }
         if ((Get-FileHash $downloaded).Hash -ne (Get-FileHash "$root/dist/fartmc-sounds.zip").Hash) {
             throw 'Served resource pack differs from generated ZIP.'
