@@ -1,5 +1,8 @@
-param([string]$Ffmpeg)
+param([string]$Ffmpeg, [switch]$LocalOnly)
 $ErrorActionPreference = 'Stop'
+if (!$LocalOnly) {
+    throw 'Myinstants redistribution rights are unverified. This script is local-only: pass -LocalOnly. Use build-public-pack.ps1 for distributable audio.'
+}
 $root = Split-Path $PSScriptRoot -Parent
 $cache = Join-Path $root '.cache'
 New-Item -ItemType Directory -Force $cache | Out-Null

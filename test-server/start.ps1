@@ -40,9 +40,9 @@ if ($Update -or !(Test-Path $server)) {
 }
 Copy-Item $plugin "$runtime/plugins/FartPlugin.jar" -Force
 if ($WithSounds) {
-    if (!(Test-Path "$root/.cache/fartmc-pack.zip")) { & "$root/scripts/build-pack.ps1" }
+    if (!(Test-Path "$root/dist/fartmc-sounds.zip")) { & "$root/scripts/build-public-pack.ps1" -JavaHome $JavaHome }
     New-Item -ItemType Directory -Force "$runtime/plugins/FartPlugin" | Out-Null
-    Copy-Item "$root/.cache/fartmc-pack.zip" "$runtime/plugins/FartPlugin/resource-pack.zip" -Force
+    Copy-Item "$root/dist/fartmc-sounds.zip" "$runtime/plugins/FartPlugin/resource-pack.zip" -Force
 }
 Copy-Item "$PSScriptRoot/server.properties" "$runtime/server.properties" -Force
 if (!$Smoke) {
@@ -83,7 +83,7 @@ try {
         $client.Proxy = $null
         try { $client.DownloadFile('http://127.0.0.1:8123/fartmc.zip', $downloaded) }
         finally { $client.Dispose() }
-        if ((Get-FileHash $downloaded).Hash -ne (Get-FileHash "$root/.cache/fartmc-pack.zip").Hash) {
+        if ((Get-FileHash $downloaded).Hash -ne (Get-FileHash "$root/dist/fartmc-sounds.zip").Hash) {
             throw 'Served resource pack differs from generated ZIP.'
         }
         Write-Output 'PACK PASS: HTTP download matches generated ZIP.'

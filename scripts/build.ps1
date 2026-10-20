@@ -21,6 +21,6 @@ if (!(Test-Path $maven)) {
 }
 Push-Location $root
 try {
-    & $maven "-Dmaven.repo.local=$cache/m2" --batch-mode verify
+    & $maven "-Dmaven.repo.local=$cache/m2" --batch-mode clean verify
     if ($LASTEXITCODE -ne 0) { throw "Build failed: $LASTEXITCODE" }
 } finally { Pop-Location }

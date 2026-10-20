@@ -1,6 +1,9 @@
 # FartMC
 
 Read README.md, docs/PLAN.md and docs/REVERSE_ENGINEERING.md before changes.
+Read docs/LICENSING.md before publishing. Code: GPL-3.0-only; public synthesized
+audio: CC0-1.0. Myinstants audio and the ARR original JAR must never enter CI artifacts.
+Public pack: scripts/build-public-pack.ps1. Distribution gate: scripts/prepare-distribution.ps1.
 Update docs/PLAN.md with completed work, evidence and remaining checks during work.
 Target Paper 26.2+, Java 25. No client mods, NMS or required resource pack.
 Do not claim support for untested future versions. Do not commit downloaded JARs,

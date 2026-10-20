@@ -1,5 +1,6 @@
 .cache/
 target/
+dist/
 test-server/runtime*/
 *.jar
 *.log

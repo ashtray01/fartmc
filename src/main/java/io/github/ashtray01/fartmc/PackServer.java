@@ -1,4 +1,4 @@
-package com.denji.fartplugin;
+package io.github.ashtray01.fartmc;
 
 import com.sun.net.httpserver.HttpServer;
 import org.bukkit.entity.Player;

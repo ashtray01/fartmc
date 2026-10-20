@@ -1,9 +1,10 @@
 name: FartPlugin
 version: '2.0.0'
-main: com.denji.fartplugin.FartPlugin
+main: io.github.ashtray01.fartmc.FartPlugin
 api-version: '26.2'
 description: Vanilla-client fart soundscapes and surprise encounters
-authors: [Denji]
+authors: [ashtray01]
+website: https://github.com/ashtray01/fartmc
 commands:
   fart:
     description: Fart, select a style or change personal settings

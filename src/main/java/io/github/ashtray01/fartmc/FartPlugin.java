@@ -1,4 +1,4 @@
-package com.denji.fartplugin;
+package io.github.ashtray01.fartmc;
 
 import org.bukkit.*;
 import org.bukkit.command.*;
@@ -10,7 +10,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.*;
-import static com.denji.fartplugin.FartLogic.Style;
+import static io.github.ashtray01.fartmc.FartLogic.Style;
 
 public final class FartPlugin extends JavaPlugin implements Listener {
     private final FartLogic logic = new FartLogic();

@@ -1,4 +1,4 @@
-package com.denji.fartplugin;
+package io.github.ashtray01.fartmc;
 
 import java.util.*;
 import java.util.random.RandomGenerator;
