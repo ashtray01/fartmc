@@ -1,0 +1,23 @@
+command-only: false
+sound-radius: 15
+cooldown-seconds: 4
+automatic-cooldown-seconds: 35
+particles:
+  enabled: true
+hotkeys:
+  sneak-swap: true
+  sneak-left-click: true
+  double-sneak: true
+  double-sneak-milliseconds: 350
+automatic:
+  enabled: true
+  proximity-radius: 2.3
+  proximity-chance: 0.18
+  food-chance: 0.35
+  landing-chance: 0.12
+  idle-chance: 0.015
+resource-pack:
+  enabled: true
+  bind: 127.0.0.1
+  port: 8123
+  url: http://127.0.0.1:8123/fartmc.zip
