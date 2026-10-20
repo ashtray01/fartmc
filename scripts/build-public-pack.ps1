@@ -41,6 +41,13 @@ Copy-Item "$root/licenses/CC0-1.0.txt" "$pack/LICENSE.txt"
 [IO.File]::WriteAllText("$pack/NOTICE.txt", 'Original mathematical sound synthesis by FartMC contributors. No third-party samples. Audio and pack metadata: CC0-1.0. Generator source: GPL-3.0-only at https://github.com/ashtray01/fartmc .', $utf8)
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $temporaryZip = Join-Path $stage 'fartmc-sounds.zip'
-[IO.Compression.ZipFile]::CreateFromDirectory($pack, $temporaryZip)
+$archive = [IO.Compression.ZipFile]::Open($temporaryZip, 'Create')
+try {
+    foreach ($file in Get-ChildItem $pack -Recurse -File) {
+        # ZipFile.CreateFromDirectory writes '\' on Windows; ZIP and Minecraft require '/'.
+        $name = $file.FullName.Substring($pack.Length + 1).Replace('\', '/')
+        [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $file.FullName, $name) | Out-Null
+    }
+} finally { $archive.Dispose() }
 Copy-Item $temporaryZip "$root/dist/fartmc-sounds.zip" -Force
 Write-Output "Public CC0 sound pack: $root/dist/fartmc-sounds.zip"
