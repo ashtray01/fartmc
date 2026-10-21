@@ -36,7 +36,7 @@ public final class FartPlugin extends JavaPlugin implements Listener {
         pack = new PackServer(this);
         pack.start();
         getServer().getScheduler().runTaskTimer(this, this::ambient, 40, 40);
-        getLogger().info("FartPlugin 2.1 ready: Paper 26.3; 7 sound styles; no client mod required.");
+        getLogger().info("FartPlugin " + getPluginMeta().getVersion() + " ready; 7 sound styles; no client mod required.");
     }
     @Override public void onDisable() { if (pack != null) pack.close(); }
 
@@ -65,10 +65,10 @@ public final class FartPlugin extends JavaPlugin implements Listener {
         if (!(auto ? automatic(p) : eligible(p))) return false;
         long now = System.nanoTime() / 1_000_000;
         if (!logic.acquire(p.getUniqueId(), now, auto,
-                (long)(bounded("cooldown-seconds", 4, 3600) * 1000),
+                (long)(bounded("cooldown-seconds", 1, 3600) * 1000),
                 (long)(bounded("automatic-cooldown-seconds", 35, 3600) * 1000))) return false;
         Style style = requested != null ? requested : p.isInWater() ? Style.BUBBLES : logic.choose(p.getUniqueId(), random);
-        Location origin = p.getLocation().add(0, .65, 0);
+        World world = p.getWorld();
         Location cloud = p.getLocation();
         // Yaw alone keeps the cloud behind the feet even when looking straight up/down.
         double yaw = Math.toRadians(cloud.getYaw());
@@ -78,17 +78,19 @@ public final class FartPlugin extends JavaPlugin implements Listener {
         for (int i = 0; i < style.pulses; i++) {
             final int pulse = i;
             getServer().getScheduler().runTaskLater(this, () -> {
-                if (!eligible(p) || !p.getWorld().equals(origin.getWorld()) || (auto && !automatic(p))) return;
+                if (!eligible(p) || !p.getWorld().equals(world) || (auto && !automatic(p))) return;
+                Location origin = p.getLocation().add(0, .65, 0);
                 double radius = bounded("sound-radius", 15, 64);
                 if (style == Style.WHISPER) radius = Math.min(radius, 4);
                 for (Player listener : origin.getWorld().getPlayers()) {
                     if (!setting(listener, enabledKey) || !listener.canSee(p)) continue;
                     if (!listener.equals(p) && (radius == 0 || listener.getLocation().distanceSquared(origin) > radius * radius)) continue;
                     if (pack.loaded(listener)) {
-                        if (pulse == 0) listener.playSound(origin, "fartmc:" + style.name().toLowerCase(Locale.ROOT),
+                        // Entity-bound playback follows the player for the entire recording.
+                        if (pulse == 0) listener.playSound(p, "fartmc:" + style.name().toLowerCase(Locale.ROOT),
                                 SoundCategory.PLAYERS, style == Style.WHISPER ? .16f : .65f, 1f, soundSeed);
                     } else {
-                        listener.playSound(origin, style.sound, SoundCategory.PLAYERS, style.volume,
+                        listener.playSound(p, style.sound, SoundCategory.PLAYERS, style.volume,
                                 Math.clamp(pitch - pulse * .025f, .5f, 2f));
                     }
                     if (pulse == 0 && getConfig().getBoolean("particles.enabled", true)) {
@@ -209,7 +211,8 @@ public final class FartPlugin extends JavaPlugin implements Listener {
             }
         }
         if (target == null) { sender.sendMessage("Укажите имя игрока онлайн: /fart <player> [style]"); return true; }
-        if (!fart(target, style, false)) sender.sendMessage("Пауза между пуками или участие игрока выключено.");
+        if (!eligible(target)) { sender.sendMessage("Участие игрока выключено или сейчас недоступно."); return true; }
+        if (!fart(target, style, false)) sender.sendMessage("пук еще не накопился...");
         return true;
     }
     @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {

@@ -1,5 +1,8 @@
 param(
-    [ValidateSet('26.3')][string]$Version = '26.3',
+    [ValidatePattern('^26\.[1-9][0-9]*(\.[0-9]+)?$')][string]$Version = '26.3',
+    [switch]$AllowUnstable,
+    [switch]$PrepareOnly,
+    [switch]$Offline,
     [switch]$AcceptEula,
     [switch]$Smoke,
     [switch]$SkipBuild,
@@ -17,8 +20,11 @@ if (!$JavaHome) {
     if ($candidate) { $JavaHome = $candidate.FullName }
 }
 if (!$JavaHome -or !(Test-Path "$JavaHome/bin/java.exe")) { throw 'Install Java 25 and set JAVA_HOME.' }
+# Paper's stable release for the 26.1 family is 26.1.2.
+if ($Version -eq '26.1') { $Version = '26.1.2' }
 if (!$SkipBuild) { & "$root/scripts/build.ps1" -JavaHome $JavaHome }
-$plugin = Join-Path $root 'target/fartplugin-2.1.0.jar'
+[xml]$pom = Get-Content "$root/pom.xml" -Raw
+$plugin = Join-Path $root "target/fartplugin-$($pom.project.version).jar"
 if (!(Test-Path $plugin)) { throw 'Build plugin first.' }
 $runtimeName = if ($Smoke) { "runtime-$Version-smoke" } else { "runtime-$Version" }
 $runtime = Join-Path $PSScriptRoot $runtimeName
@@ -29,10 +35,11 @@ if (!(Test-Path "$runtime/eula.txt") -or !(Select-String -Path "$runtime/eula.tx
 }
 $server = Join-Path $runtime 'paper.jar'
 if ($Update -or !(Test-Path $server)) {
-    $headers = @{ 'User-Agent' = 'FartMC/2.1 (local plugin development)' }
+    $headers = @{ 'User-Agent' = 'FartMC/2.2 (https://github.com/ashtray01/fartmc)' }
     $builds = Invoke-RestMethod "https://fill.papermc.io/v3/projects/paper/versions/$Version/builds" -Headers $headers
-    $build = $builds | Where-Object channel -EQ 'STABLE' | Sort-Object id -Descending | Select-Object -First 1
-    if (!$build) { throw "No stable Paper build for $Version" }
+    $build = $builds | Where-Object { $AllowUnstable -or $_.channel -eq 'STABLE' } |
+        Sort-Object id -Descending | Select-Object -First 1
+    if (!$build) { throw "No stable Paper build for $Version. Use -AllowUnstable only for an intentional preview test." }
     $download = $build.downloads.'server:default'
     $temp = Join-Path $runtime 'paper.download'
     Invoke-WebRequest $download.url -Headers $headers -OutFile $temp -UseBasicParsing
@@ -42,12 +49,23 @@ if ($Update -or !(Test-Path $server)) {
 }
 Copy-Item $plugin "$runtime/plugins/FartPlugin.jar" -Force
 if ($WithSounds) {
+    if (!$Ffmpeg -and !(Get-Command ffmpeg -ErrorAction SilentlyContinue) -and
+        (Test-Path "$root/../videowall/ffmpeg/ffmpeg.exe")) {
+        $Ffmpeg = (Resolve-Path "$root/../videowall/ffmpeg/ffmpeg.exe").Path
+    }
     & "$root/scripts/build-public-pack.ps1" -JavaHome $JavaHome -Ffmpeg $Ffmpeg
     $soundPack = "$root/dist/fartmc-sounds.zip"
     New-Item -ItemType Directory -Force "$runtime/plugins/FartPlugin" | Out-Null
     Copy-Item $soundPack "$runtime/plugins/FartPlugin/resource-pack.zip" -Force
 }
 Copy-Item "$PSScriptRoot/server.properties" "$runtime/server.properties" -Force
+if ($Offline) {
+    # Offline mode is an explicit local-launch option, not the release default.
+    $properties = (Get-Content "$runtime/server.properties" -Raw).
+        Replace('online-mode=true', 'online-mode=false')
+    $properties += "`nenforce-secure-profile=false`n"
+    [IO.File]::WriteAllText("$runtime/server.properties", $properties, [Text.UTF8Encoding]::new($false))
+}
 if ($Smoke) {
     # Never share worlds, logs, settings or listening ports with an interactive server.
     Add-Content "$runtime/server.properties" 'server-port=25566' -Encoding ASCII
@@ -56,6 +74,10 @@ if ($Smoke) {
         Replace('port: 8123', 'port: 8124').
         Replace('http://127.0.0.1:8123/', 'http://127.0.0.1:8124/')
     [IO.File]::WriteAllText("$runtime/plugins/FartPlugin/config.yml", $config, [Text.UTF8Encoding]::new($false))
+}
+if ($PrepareOnly) {
+    Write-Output "PREPARED: Paper $Version; plugin $($pom.project.version); $runtime"
+    return
 }
 if (!$Smoke) {
     Push-Location $runtime
@@ -85,7 +107,7 @@ try {
         $log = Join-Path $runtime 'logs/latest.log'
         if ((Test-Path $log) -and (Get-Item $log).LastWriteTime -ge $started) {
             $content = Get-Content $log -Raw
-            if ($content -match 'Done \(' -and $content -match 'FartPlugin 2.1 ready') { $ready = $true; break }
+            if ($content -match 'Done \(' -and $content -match ('FartPlugin ' + [regex]::Escape($pom.project.version) + ' ready')) { $ready = $true; break }
         }
     }
     if (!$ready) { throw 'Server did not become ready. Inspect smoke stdout/stderr and logs/latest.log.' }

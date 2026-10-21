@@ -55,7 +55,7 @@ try {
         $profiles = Get-Content sounds/profiles.json -Raw -Encoding UTF8 | ConvertFrom-Json
         $definitions = Read-ZipText $pack 'assets/fartmc/sounds.json' | ConvertFrom-Json
         $meta = Read-ZipText $pack 'pack.mcmeta' | ConvertFrom-Json
-        if (($meta.pack.min_format -join '.') -ne '97.1' -or ($meta.pack.max_format -join '.') -ne '97.1') { throw 'Wrong pack formats: only Minecraft 26.3 is supported.' }
+        if (($meta.pack.min_format -join '.') -ne '84.0' -or ($meta.pack.max_format -join '.') -ne '97.1') { throw 'Wrong pack formats: expected Minecraft 26.1-26.3 (84.0-97.1).' }
         if ((Read-ZipText $pack 'CC0-1.0.txt') -cne (Get-Content licenses/CC0-1.0.txt -Raw)) { throw 'CC0 license differs from the reviewed text.' }
         if ((Read-ZipText $pack 'LICENSE.txt') -cne (Get-Content sounds/RIGHTS.txt -Raw -Encoding UTF8)) { throw 'Audio rights notice mismatch.' }
         if ((Read-ZipText $pack 'PROVENANCE.json') -cne (Get-Content sounds/PROVENANCE.json -Raw -Encoding UTF8)) { throw 'Audio provenance mismatch.' }
@@ -102,5 +102,5 @@ try {
         "$hash  $([IO.Path]::GetFileName($path))"
     }
     [IO.File]::WriteAllLines((Join-Path $root 'dist/SHA256SUMS'), $sums, [Text.UTF8Encoding]::new($false))
-    Write-Output 'Distribution checks passed: GPL plugin + corresponding source; 21 approved supplied recordings + 7 original CC0 sounds; Minecraft 26.3 only.'
+    Write-Output 'Distribution checks passed: GPL plugin + corresponding source; 21 approved supplied recordings + 7 original CC0 sounds; Minecraft 26.1-26.3.'
 } finally { Pop-Location }

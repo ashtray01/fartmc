@@ -62,7 +62,7 @@ foreach ($profile in $profiles.PSObject.Properties) {
 }
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 [IO.File]::WriteAllText("$pack/assets/fartmc/sounds.json", ($sounds | ConvertTo-Json -Depth 8), $utf8)
-$meta = @{pack=@{description='FartMC - 28 sounds for Minecraft 26.3'; min_format=@(97,1); max_format=@(97,1)}}
+$meta = @{pack=@{description='FartMC - 28 sounds for Minecraft 26.1-26.3'; min_format=@(84,0); max_format=@(97,1)}}
 [IO.File]::WriteAllText("$pack/pack.mcmeta", ($meta | ConvertTo-Json -Depth 5), $utf8)
 $manifest = @{distribution='fartmc-complete'; generator='scripts/build-public-pack.ps1'; license='mixed'; sounds=$sources}
 [IO.File]::WriteAllText("$pack/SOURCES.json", ($manifest | ConvertTo-Json -Depth 8), $utf8)

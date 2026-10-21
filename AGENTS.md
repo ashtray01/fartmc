@@ -8,10 +8,13 @@ their provenance and exact hashes are in sounds/PROVENANCE.json and sounds/RIGHT
 The complete public pack combines those recordings with seven CC0 synthesized sounds.
 Public pack: scripts/build-public-pack.ps1. Distribution gate: scripts/prepare-distribution.ps1.
 Update docs/PLAN.md with completed work, evidence and remaining checks during work.
-Target Paper 26.3 only, Java 25. No client mods, NMS or required resource pack.
+Target Paper 26.x, Java 25; compile against stable 26.1.2 API. No client mods, NMS or required resource pack.
 Do not claim support for untested future versions. Do not commit downloaded JARs,
 worlds, logs, caches or EULA acceptance. Original FartPlugin.jar is user input;
 preserve it locally. Do not redistribute it or assume its license.
 Build/test: powershell -ExecutionPolicy Bypass -File scripts/build.ps1
 Server: powershell -ExecutionPolicy Bypass -File test-server/start.ps1 -AcceptEula
-Use only loopback networking for the test environment. Keep online-mode=true.
+Use only loopback networking for the test environment. Default online-mode=true.
+The owner explicitly requested a local Paper 26.2 offline launcher on 2026-10-21:
+start-server.bat uses -Version 26.2 -Offline. The same JAR and sound pack serve
+26.1.2, 26.2 and 26.3; future versions need separate verification.

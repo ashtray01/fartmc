@@ -1,6 +1,6 @@
 command-only: false
 sound-radius: 15
-cooldown-seconds: 4
+cooldown-seconds: 1
 automatic-cooldown-seconds: 35
 particles:
   # Green cloud low behind the player, including whisper; no resource pack needed.
