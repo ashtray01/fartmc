@@ -15,7 +15,7 @@
 ![Звуки](https://img.shields.io/badge/28_звуков-7_характеров-b7e46b?style=flat-square)
 ![Моды](https://img.shields.io/badge/Моды_игрокам-не_нужны-77c9b0?style=flat-square)
 
-**[Скачать](https://github.com/ashtray01/fartmc/actions/workflows/build.yml) · [Как играть](#три-способа-нарушить-тишину) · [Установить](#пригласить-на-свой-сервер)**
+**[Скачать](https://github.com/ashtray01/fartmc/releases/latest) · [Как играть](#три-способа-нарушить-тишину) · [Установить](#пригласить-на-свой-сервер)**
 
 </div>
 
@@ -71,9 +71,9 @@
 
 Нужен сервер **Paper 26.3**. Игрокам достаточно обычного **Minecraft Java 26.3**.
 
-1. Откройте **[последнюю успешную сборку](https://github.com/ashtray01/fartmc/actions/workflows/build.yml)**.
-   Внизу страницы скачайте `fartmc-plugin` и `fartmc-sounds` — для скачивания нужен вход в GitHub.
-2. Распакуйте скачанное. Положите `fartplugin-2.1.0.jar` в папку `plugins` своего сервера.
+1. Откройте **[последний релиз](https://github.com/ashtray01/fartmc/releases/latest)**
+   и скачайте `fartplugin-2.1.0.jar` и `fartmc-sounds.zip` из раздела **Assets**.
+2. Положите `fartplugin-2.1.0.jar` в папку `plugins` своего сервера.
 3. Для всех 28 звуков подключите `fartmc-sounds.zip` по **[короткой инструкции](docs/SETUP.md#подключить-звуки)**.
 4. Перезапустите сервер, зайдите в игру и попробуйте **Shift + F**.
 
