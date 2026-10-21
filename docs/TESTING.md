@@ -9,7 +9,10 @@
 - Все 28 OGG полностью декодированы: mono Vorbis 44100 Hz. SHA-256 исходных MP3
   и результатов совпадает с манифестом; формат пака строго 97.1, ZIP entries без дублей.
 - Серверная проверка: PASS, включая команды, HTTP-раздачу точной копии ZIP и остановку.
-- PowerShell syntax и git diff --check: PASS. Distribution gate выполняется после коммита.
+- PowerShell syntax, git diff --check и distribution gate после коммита f7fb60c: PASS.
+- GitHub Actions на Ubuntu: main 39549145371 и тег v2.1.0 / run 39549156837 — SUCCESS.
+  В обоих случаях прошли сборка, тесты, подготовка 28 звуков, проверка состава
+  и загрузка fartmc-plugin / fartmc-sounds. Исходный коммит: f7fb60c.
 
 Команда серверной проверки:
 
