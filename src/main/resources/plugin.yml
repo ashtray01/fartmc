@@ -1,7 +1,7 @@
 name: FartPlugin
-version: '2.0.0'
+version: '2.1.0'
 main: io.github.ashtray01.fartmc.FartPlugin
-api-version: '26.2'
+api-version: '26.3'
 description: Vanilla-client fart soundscapes and surprise encounters
 authors: [ashtray01]
 website: https://github.com/ashtray01/fartmc

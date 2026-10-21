@@ -1,0 +1,85 @@
+# FartMC на вашем сервере
+
+Поддерживается только Paper 26.3 и Minecraft Java 26.3. Серверу нужна Java 25.
+Игрокам не нужны моды.
+
+## Установить плагин
+
+В [Actions](https://github.com/ashtray01/fartmc/actions/workflows/build.yml) выберите
+успешную сборку и скачайте `fartmc-plugin`. Распакуйте внешний архив GitHub,
+затем положите `fartplugin-2.1.0.jar` в `plugins/`. Перезапустите сервер.
+В `plugins/FartPlugin/` появятся настройки.
+
+## Подключить звуки
+
+1. Из той же сборки скачайте `fartmc-sounds` и распакуйте внешний архив GitHub.
+   Внутри находится готовый `fartmc-sounds.zip`; сам этот файл распаковывать не нужно.
+2. Скопируйте его на сервер в `plugins/FartPlugin/resource-pack.zip`.
+3. Загрузите такой же ZIP на свой HTTPS-хостинг и получите прямую ссылку на файл.
+4. В `plugins/FartPlugin/config.yml` укажите ссылку:
+
+   ```yaml
+   resource-pack:
+     enabled: true
+     bind: 127.0.0.1
+     port: 8123
+     url: https://your-domain.example/fartmc-sounds.zip
+   ```
+
+5. Перезапустите сервер. При входе согласитесь загрузить предложенные звуки.
+
+Адрес выше — пример: замените его своим. При внешнем HTTPS-хостинге открывать
+порт 8123 для игроков не нужно. Вместо хостинга можно использовать встроенную
+раздачу: задайте доступные игрокам адрес в `url`, адрес прослушивания в `bind`
+и откройте соответствующий порт. Игровой порт Minecraft сам ZIP не передаёт.
+
+В паке 28 вариантов: 21 предоставленная владельцем запись и 7 синтезированных.
+Отказ от пака сохраняет обычные звуки Minecraft и зелёные частицы.
+
+## Настроить под свою компанию
+
+Основные параметры в `plugins/FartPlugin/config.yml`:
+
+| Параметр | По умолчанию | Что меняет |
+| --- | --- | --- |
+| `sound-radius` | `15` | Расстояние слышимости. Шептун ограничен четырьмя блоками. |
+| `cooldown-seconds` | `4` | Пауза между пуками. |
+| `automatic-cooldown-seconds` | `35` | Пауза между случайными событиями. |
+| `particles.enabled` | `true` | Зелёные облачка. |
+| `automatic.enabled` | `true` | Случайные сюрпризы. |
+| `command-only` | `false` | При `true` остаются только команды. |
+
+После изменений выполните `/fartreload`. Изменения звукового ZIP и его адреса
+требуют перезапуска. Полный список параметров — в [шаблоне](../src/main/resources/config.yml).
+
+Оператору доступны `/fart <игрок> [стиль]` и `/fartreload`. Права:
+`fartplugin.use` — всем, `fartplugin.others` и `fartplugin.reload` — операторам.
+
+## Собрать и проверить локально
+
+Нужны Java 25 и FFmpeg. На Windows:
+
+```powershell
+./scripts/build.ps1
+./scripts/build-public-pack.ps1 -Ffmpeg <путь-к-ffmpeg.exe>
+./test-server/start.ps1 -AcceptEula -WithSounds -Ffmpeg <путь-к-ffmpeg.exe>
+```
+
+`-AcceptEula` означает принятие [Minecraft EULA](https://aka.ms/MinecraftEULA).
+Подключение: `127.0.0.1:25565`, авторизованный аккаунт, `online-mode=true`.
+`JAVA_HOME` или `-JavaHome` позволяют выбрать JDK. Скрипт также находит Temurin 25
+в стандартной папке установки. Maven и Paper загружаются при необходимости.
+
+Для автоматической проверки добавьте `-Smoke -SkipBuild`. Она использует отдельный
+каталог `runtime-26.3-smoke`, игровой порт 25566 и порт пака 8124, затем останавливает
+сервер. Все тестовые адреса — loopback. `-Update` обновляет локальный Paper выбранной
+версии; без него используется уже скачанный файл.
+
+Готовые файлы: `target/fartplugin-2.1.0.jar` и `dist/fartmc-sounds.zip`.
+`build-user-pack.ps1` отдельно собирает только 21 предоставленную запись в
+`dist/fartmc-user-sounds.zip`; основной запуск и CI используют полный пак из 28 звуков.
+Распределение записей — [sounds/profiles.json](../sounds/profiles.json).
+
+После коммита `scripts/prepare-distribution.ps1` проверяет состав файлов,
+происхождение звуков и создаёт архив соответствующих исходников.
+В Actions готовые артефакты хранятся 30 дней. Тег сам по себе не создаёт GitHub Release.

@@ -1,0 +1,16 @@
+FartMC audio provenance
+
+The 21 MP3 recordings in sounds/ were supplied by the project owner.
+On 2026-10-21 the owner described these files as royalty-free, stated that
+they require no license, and requested their inclusion in the GitHub build.
+The exact original files and their SHA-256 hashes are listed in PROVENANCE.json.
+These are statements from the supplier, not an independently verified license
+or a claim that FartMC owns the recordings. No source URLs or third-party
+license documents were supplied. Original rights, if any, remain applicable.
+LicenseRef-User-Provided in the manifest identifies this provenance record;
+it does not relicense the recordings under GPL or CC0.
+
+The seven procedurally synthesized sounds named classic, whisper, bubbles,
+trumpet, rattle, thunder and squeak are dedicated under CC0-1.0.
+The complete CC0 text is included in CC0-1.0.txt in the built pack.
+The plugin and synthesis generator code are GPL-3.0-only.

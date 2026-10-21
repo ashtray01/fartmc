@@ -1,4 +1,4 @@
-name: Build plugin and licensed sound pack
+name: FartMC · Paper 26.3
 
 on:
   push:
@@ -31,7 +31,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y ffmpeg
-      - name: Synthesize original CC0 pack (no Myinstants downloads)
+      - name: Build the FartMC sound pack
         shell: pwsh
         run: ./scripts/build-public-pack.ps1
       - name: Prepare and verify distribution
@@ -49,7 +49,7 @@ jobs:
             dist/LICENSE
             dist/NOTICE.md
             dist/SHA256SUMS
-      - name: Upload original sound pack
+      - name: Upload all 28 sounds
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: fartmc-sounds

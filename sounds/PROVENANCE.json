@@ -1,0 +1,93 @@
+{
+  "supplier": "project owner",
+  "recorded_on": "2026-10-21",
+  "supplier_statement": "royalty-free; файлы не требуют лицензии",
+  "publication": "Owner requested inclusion in the GitHub build.",
+  "verification": "Supplier statement only; no original source URLs or license documents supplied.",
+  "files": [
+    {
+      "file": "alex_jauk-short-echo-fart-185251.mp3",
+      "sha256": "947cfe03537542ba34b2857a8061871ce2bcda23cfff6416865971703047fa9e"
+    },
+    {
+      "file": "alex_jauk-short-fart-185140.mp3",
+      "sha256": "610fb9b45143c7804d0f4b5d66f1d1d5512e017eaad552f03434aaba20dfa2b4"
+    },
+    {
+      "file": "apebble-fart-1-228241.mp3",
+      "sha256": "b664f951e44d16a18c7e130e07e56cc019cb7acf835079bfecb102d0674358d8"
+    },
+    {
+      "file": "apebble-fart-10-228250.mp3",
+      "sha256": "deacb3a56b922711ec440765461ea0ab4f20176e9d39c3d4ec0eda416857c53f"
+    },
+    {
+      "file": "apebble-fart-2-228242.mp3",
+      "sha256": "deacb3a56b922711ec440765461ea0ab4f20176e9d39c3d4ec0eda416857c53f"
+    },
+    {
+      "file": "apebble-fart-3-228243.mp3",
+      "sha256": "89e803e8d8d3c65612e18d82e5836393ead35710a586e3d4f3f667317d249657"
+    },
+    {
+      "file": "apebble-fart-4-228244.mp3",
+      "sha256": "92d724abc4bcf4e0bd8f383f29e49177f5927d44af58842a00316ec6013f80bd"
+    },
+    {
+      "file": "apebble-fart-5-228245.mp3",
+      "sha256": "86b36d62785c45d17abb19391b5b28889b97a251ed1b3a30e9f3262722ef776a"
+    },
+    {
+      "file": "apebble-fart-6-228246.mp3",
+      "sha256": "67b6e87cc909725cdba0a73c6c768b9ce046e13c3918b239a6c272830ee9f2ca"
+    },
+    {
+      "file": "apebble-fart-7-228247.mp3",
+      "sha256": "f05c695fbd0df1f4fb34873a6295c2f4884c31d1973a31ec6e3abeb8c63f3b37"
+    },
+    {
+      "file": "beanfrog-proud-fart-288263.mp3",
+      "sha256": "36e629583c2c43996e2d90126e1f936fa389162ffe9392fbaee6d75c1468c312"
+    },
+    {
+      "file": "dragon-studio-wet-fart-335478.mp3",
+      "sha256": "dab3e1380da8c72b1f9eb3c97fa9196a146ece78a8d865d226de67b1d02077ef"
+    },
+    {
+      "file": "freesound_community-fart-83471.mp3",
+      "sha256": "b65a9309e22122220d6e552329d98b8a2fcb365c2b1a3067ccd497b35dfb21c5"
+    },
+    {
+      "file": "freesound_community-fart-91011.mp3",
+      "sha256": "74053d6b012c82ad86654f4c094e212c2c9f188c8df7644dd2dcfcd544a90854"
+    },
+    {
+      "file": "freesound_community-huge-fart-89723.mp3",
+      "sha256": "749fa915d978363e0807d1396e2c9d37f36e32d1769ff5346d77d2cc1c75b957"
+    },
+    {
+      "file": "freesound_community-long-fart-farting-80351.mp3",
+      "sha256": "350f3cc6c3117c3819cf16f099e5ba82298efb9d216d6b766c877792438cb3f6"
+    },
+    {
+      "file": "freesound_community-loud-fart-farting-human-sounds-101981.mp3",
+      "sha256": "6527c825f7ca2043899f879bdfd197965db1100c1c5b61460dcc898d1a53098c"
+    },
+    {
+      "file": "freesound_community-retro-fart-104576.mp3",
+      "sha256": "67ce2be71a492afeff7e80b8629358e01a29a23e8a2ff985806614fa2c7fa7dc"
+    },
+    {
+      "file": "freesound_community-wet-fart-6139.mp3",
+      "sha256": "746d55a3c5dc06048400f70358a10ad4fda6ae13ab329d2d81f10cf9ecab5a50"
+    },
+    {
+      "file": "waltermidnight-fart-sound-310129.mp3",
+      "sha256": "9a63c4f85029e48750f8bc851269f0652cd33ac6133da3a5dc5f444b7ea36384"
+    },
+    {
+      "file": "waltermidnight-ultimate-fart-sound-310131.mp3",
+      "sha256": "c1cf658a060f73a29be0178cf31ec3db423d6c230bbd4f0258bfc80b80bf414e"
+    }
+  ]
+}

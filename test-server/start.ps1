@@ -1,10 +1,11 @@
 param(
-    [ValidateSet('26.2', '26.3')][string]$Version = '26.3',
+    [ValidateSet('26.3')][string]$Version = '26.3',
     [switch]$AcceptEula,
     [switch]$Smoke,
     [switch]$SkipBuild,
     [switch]$Update,
     [switch]$WithSounds,
+    [string]$Ffmpeg,
     [string]$JavaHome = $env:JAVA_HOME,
     [int]$TimeoutSeconds = 240
 )
@@ -17,7 +18,7 @@ if (!$JavaHome) {
 }
 if (!$JavaHome -or !(Test-Path "$JavaHome/bin/java.exe")) { throw 'Install Java 25 and set JAVA_HOME.' }
 if (!$SkipBuild) { & "$root/scripts/build.ps1" -JavaHome $JavaHome }
-$plugin = Join-Path $root 'target/fartplugin-2.0.0.jar'
+$plugin = Join-Path $root 'target/fartplugin-2.1.0.jar'
 if (!(Test-Path $plugin)) { throw 'Build plugin first.' }
 $runtimeName = if ($Smoke) { "runtime-$Version-smoke" } else { "runtime-$Version" }
 $runtime = Join-Path $PSScriptRoot $runtimeName
@@ -28,7 +29,7 @@ if (!(Test-Path "$runtime/eula.txt") -or !(Select-String -Path "$runtime/eula.tx
 }
 $server = Join-Path $runtime 'paper.jar'
 if ($Update -or !(Test-Path $server)) {
-    $headers = @{ 'User-Agent' = 'FartMC/2.0 (local plugin development)' }
+    $headers = @{ 'User-Agent' = 'FartMC/2.1 (local plugin development)' }
     $builds = Invoke-RestMethod "https://fill.papermc.io/v3/projects/paper/versions/$Version/builds" -Headers $headers
     $build = $builds | Where-Object channel -EQ 'STABLE' | Sort-Object id -Descending | Select-Object -First 1
     if (!$build) { throw "No stable Paper build for $Version" }
@@ -41,9 +42,10 @@ if ($Update -or !(Test-Path $server)) {
 }
 Copy-Item $plugin "$runtime/plugins/FartPlugin.jar" -Force
 if ($WithSounds) {
-    if (!(Test-Path "$root/dist/fartmc-sounds.zip")) { & "$root/scripts/build-public-pack.ps1" -JavaHome $JavaHome }
+    & "$root/scripts/build-public-pack.ps1" -JavaHome $JavaHome -Ffmpeg $Ffmpeg
+    $soundPack = "$root/dist/fartmc-sounds.zip"
     New-Item -ItemType Directory -Force "$runtime/plugins/FartPlugin" | Out-Null
-    Copy-Item "$root/dist/fartmc-sounds.zip" "$runtime/plugins/FartPlugin/resource-pack.zip" -Force
+    Copy-Item $soundPack "$runtime/plugins/FartPlugin/resource-pack.zip" -Force
 }
 Copy-Item "$PSScriptRoot/server.properties" "$runtime/server.properties" -Force
 if ($Smoke) {
@@ -83,7 +85,7 @@ try {
         $log = Join-Path $runtime 'logs/latest.log'
         if ((Test-Path $log) -and (Get-Item $log).LastWriteTime -ge $started) {
             $content = Get-Content $log -Raw
-            if ($content -match 'Done \(' -and $content -match 'FartPlugin 2.0 ready') { $ready = $true; break }
+            if ($content -match 'Done \(' -and $content -match 'FartPlugin 2.1 ready') { $ready = $true; break }
         }
     }
     if (!$ready) { throw 'Server did not become ready. Inspect smoke stdout/stderr and logs/latest.log.' }
@@ -93,7 +95,7 @@ try {
         $client.Proxy = $null
         try { $client.DownloadFile('http://127.0.0.1:8124/fartmc.zip', $downloaded) }
         finally { $client.Dispose() }
-        if ((Get-FileHash $downloaded).Hash -ne (Get-FileHash "$root/dist/fartmc-sounds.zip").Hash) {
+        if ((Get-FileHash $downloaded).Hash -ne (Get-FileHash $soundPack).Hash) {
             throw 'Served resource pack differs from generated ZIP.'
         }
         Write-Output 'PACK PASS: HTTP download matches generated ZIP.'

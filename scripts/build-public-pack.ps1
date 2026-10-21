@@ -29,16 +29,47 @@ foreach ($wav in (Get-ChildItem "$stage/wav" -Filter '*.wav' | Sort-Object Name)
     & $Ffmpeg -hide_banner -loglevel error -y -i $wav.FullName -map_metadata -1 -ac 1 -ar 44100 -c:a libvorbis -q:a 4 $ogg
     if ($LASTEXITCODE -ne 0) { throw "Vorbis conversion failed: $style" }
     $sounds[$style] = @{ sounds = @(@{ name="fartmc:$style"; attenuation_distance=16 }) }
-    $sources += @{ style=$style; origin='procedural synthesis, no samples'; license='CC0-1.0'; sha256=(Get-FileHash $ogg -Algorithm SHA256).Hash.ToLowerInvariant() }
+    $sources += @{ style=$style; name=$style; origin='procedural synthesis, no samples'; license='CC0-1.0'; sha256=(Get-FileHash $ogg -Algorithm SHA256).Hash.ToLowerInvariant() }
+}
+# Include only the exact recordings supplied and approved by the project owner.
+$profiles = Get-Content "$root/sounds/profiles.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+$provenance = Get-Content "$root/sounds/PROVENANCE.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+$mapped = @($profiles.PSObject.Properties | ForEach-Object { $_.Value })
+if ($mapped.Count -ne 21 -or ($mapped | Sort-Object -Unique).Count -ne 21 -or
+    (($mapped | Sort-Object) -join ',') -cne (($provenance.files.file | Sort-Object) -join ',')) {
+    throw 'The public pack requires the 21 approved recordings, each mapped once.'
+}
+foreach ($profile in $profiles.PSObject.Properties) {
+    if (!$sounds.Contains($profile.Name) -or @($profile.Value).Count -ne 3) { throw "Invalid profile: $($profile.Name)" }
+    foreach ($file in $profile.Value) {
+        if ($file -notmatch '^[a-z0-9_-]+\.mp3$') { throw "Invalid input name: $file" }
+        $inputPath = Join-Path "$root/sounds" $file
+        $source = @($provenance.files | Where-Object file -CEQ $file)
+        if ($source.Count -ne 1 -or (Get-FileHash $inputPath -Algorithm SHA256).Hash -ine $source[0].sha256) {
+            throw "Recording differs from approved input: $file"
+        }
+        $name = [IO.Path]::GetFileNameWithoutExtension($file)
+        $ogg = Join-Path $audio "$name.ogg"
+        & $Ffmpeg -hide_banner -loglevel error -y -i $inputPath -vn -map_metadata -1 -ac 1 -ar 44100 -c:a libvorbis -q:a 4 $ogg
+        if ($LASTEXITCODE -ne 0) { throw "Vorbis conversion failed: $file" }
+        $sounds[$profile.Name].sounds += @{ name="fartmc:$name"; attenuation_distance=16 }
+        $sources += @{
+            style=$profile.Name; name=$name; file=$file; origin='project-owner-provided recording'
+            license='LicenseRef-User-Provided'; source_sha256=$source[0].sha256
+            sha256=(Get-FileHash $ogg -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+    }
 }
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 [IO.File]::WriteAllText("$pack/assets/fartmc/sounds.json", ($sounds | ConvertTo-Json -Depth 8), $utf8)
-$meta = @{pack=@{description='FartMC original synthesized sounds (CC0)'; min_format=@(88,0); max_format=@(97,1)}}
+$meta = @{pack=@{description='FartMC - 28 sounds for Minecraft 26.3'; min_format=@(97,1); max_format=@(97,1)}}
 [IO.File]::WriteAllText("$pack/pack.mcmeta", ($meta | ConvertTo-Json -Depth 5), $utf8)
-$manifest = @{distribution='public-original'; generator='scripts/SynthesizeSounds.java'; license='CC0-1.0'; sounds=$sources}
+$manifest = @{distribution='fartmc-complete'; generator='scripts/build-public-pack.ps1'; license='mixed'; sounds=$sources}
 [IO.File]::WriteAllText("$pack/SOURCES.json", ($manifest | ConvertTo-Json -Depth 8), $utf8)
-Copy-Item "$root/licenses/CC0-1.0.txt" "$pack/LICENSE.txt"
-[IO.File]::WriteAllText("$pack/NOTICE.txt", 'Original mathematical sound synthesis by FartMC contributors. No third-party samples. Audio and pack metadata: CC0-1.0. Generator source: GPL-3.0-only at https://github.com/ashtray01/fartmc .', $utf8)
+Copy-Item "$root/licenses/CC0-1.0.txt" "$pack/CC0-1.0.txt"
+Copy-Item "$root/sounds/PROVENANCE.json" "$pack/PROVENANCE.json"
+Copy-Item "$root/sounds/RIGHTS.txt" "$pack/LICENSE.txt"
+[IO.File]::WriteAllText("$pack/NOTICE.txt", 'FartMC: 21 project-owner-provided recordings plus 7 original synthesized sounds. CC0 applies only to synthesized sounds; see SOURCES.json, PROVENANCE.json and LICENSE.txt. Code: GPL-3.0-only at https://github.com/ashtray01/fartmc .', $utf8)
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $temporaryZip = Join-Path $stage 'fartmc-sounds.zip'
 $archive = [IO.Compression.ZipFile]::Open($temporaryZip, 'Create')
@@ -50,4 +81,4 @@ try {
     }
 } finally { $archive.Dispose() }
 Copy-Item $temporaryZip "$root/dist/fartmc-sounds.zip" -Force
-Write-Output "Public CC0 sound pack: $root/dist/fartmc-sounds.zip"
+Write-Output "Complete sound pack: $root/dist/fartmc-sounds.zip (21 supplied + 7 synthesized sounds)"

@@ -13,6 +13,8 @@ import java.util.*;
 import static io.github.ashtray01.fartmc.FartLogic.Style;
 
 public final class FartPlugin extends JavaPlugin implements Listener {
+    private static final Particle.DustTransition GREEN_CLOUD = new Particle.DustTransition(
+            Color.fromRGB(90, 175, 35), Color.fromRGB(175, 210, 100), 1.6f);
     private final FartLogic logic = new FartLogic();
     private final Random random = new Random();
     private final Map<UUID, Long> sneaks = new HashMap<>();
@@ -34,7 +36,7 @@ public final class FartPlugin extends JavaPlugin implements Listener {
         pack = new PackServer(this);
         pack.start();
         getServer().getScheduler().runTaskTimer(this, this::ambient, 40, 40);
-        getLogger().info("FartPlugin 2.0 ready: 7 vanilla sound styles; no client mod required.");
+        getLogger().info("FartPlugin 2.1 ready: Paper 26.3; 7 sound styles; no client mod required.");
     }
     @Override public void onDisable() { if (pack != null) pack.close(); }
 
@@ -67,6 +69,11 @@ public final class FartPlugin extends JavaPlugin implements Listener {
                 (long)(bounded("automatic-cooldown-seconds", 35, 3600) * 1000))) return false;
         Style style = requested != null ? requested : p.isInWater() ? Style.BUBBLES : logic.choose(p.getUniqueId(), random);
         Location origin = p.getLocation().add(0, .65, 0);
+        Location cloud = p.getLocation();
+        // Yaw alone keeps the cloud behind the feet even when looking straight up/down.
+        double yaw = Math.toRadians(cloud.getYaw());
+        cloud.add(Math.sin(yaw) * .5, Math.min(.55, p.getHeight() * .4), -Math.cos(yaw) * .5);
+        long soundSeed = random.nextLong(); // All listeners select the same resource-pack variant.
         float pitch = Math.clamp(style.pitch + (random.nextFloat() - .5f) * .15f, .5f, 2f);
         for (int i = 0; i < style.pulses; i++) {
             final int pulse = i;
@@ -79,14 +86,17 @@ public final class FartPlugin extends JavaPlugin implements Listener {
                     if (!listener.equals(p) && (radius == 0 || listener.getLocation().distanceSquared(origin) > radius * radius)) continue;
                     if (pack.loaded(listener)) {
                         if (pulse == 0) listener.playSound(origin, "fartmc:" + style.name().toLowerCase(Locale.ROOT),
-                                SoundCategory.PLAYERS, style == Style.WHISPER ? .16f : .65f, 1f);
+                                SoundCategory.PLAYERS, style == Style.WHISPER ? .16f : .65f, 1f, soundSeed);
                     } else {
                         listener.playSound(origin, style.sound, SoundCategory.PLAYERS, style.volume,
                                 Math.clamp(pitch - pulse * .025f, .5f, 2f));
                     }
-                    if (pulse == 0 && style != Style.WHISPER && getConfig().getBoolean("particles.enabled", true)) {
-                        listener.spawnParticle(style == Style.BUBBLES ? Particle.BUBBLE_POP : Particle.SNEEZE,
-                                origin, 6, .18, .12, .18, .015);
+                    if (pulse == 0 && getConfig().getBoolean("particles.enabled", true)) {
+                        listener.spawnParticle(Particle.DUST_COLOR_TRANSITION, cloud,
+                                style == Style.WHISPER ? 10 : 24, .18, .12, .18, .015, GREEN_CLOUD);
+                        if (style == Style.BUBBLES) {
+                            listener.spawnParticle(Particle.BUBBLE_POP, cloud, 6, .18, .12, .18, .015);
+                        }
                     }
                 }
             }, i * 3L);

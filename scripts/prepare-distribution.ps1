@@ -10,8 +10,15 @@ try {
     if ($LASTEXITCODE -ne 0 -or $pending) { throw 'Distribution requires a clean worktree, including new source files.' }
     $tracked = & git ls-files
     if ($LASTEXITCODE -ne 0) { throw 'Cannot enumerate source files.' }
-    if ($tracked | Where-Object { $_ -match '(^|/)(\.cache|runtime-[^/]+|target|dist)/|\.(jar|mp3|ogg|wav|exe|zip)$' }) {
+    $provenance = Get-Content sounds/PROVENANCE.json -Raw -Encoding UTF8 | ConvertFrom-Json
+    $approvedAudio = @($provenance.files | ForEach-Object { "sounds/$($_.file)" })
+    if ($approvedAudio.Count -ne 21 -or ($approvedAudio | Sort-Object -Unique).Count -ne 21) { throw 'Expected 21 approved source recordings.' }
+    if ($tracked | Where-Object { $_ -match '(^|/)(\.cache|runtime-[^/]+|target|dist)/|\.(jar|mp3|ogg|wav|exe|zip)$' -and $_ -cnotin $approvedAudio }) {
         throw 'Downloaded/generated binaries or runtime files are tracked.'
+    }
+    foreach ($source in $provenance.files) {
+        if ($source.file -notmatch '^[a-z0-9_-]+\.mp3$' -or "sounds/$($source.file)" -cnotin $tracked -or
+            (Get-FileHash "sounds/$($source.file)" -Algorithm SHA256).Hash -ine $source.sha256) { throw 'Approved source audio mismatch.' }
     }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $jars = @(Get-ChildItem target -Filter 'fartplugin-*.jar')
@@ -39,21 +46,32 @@ try {
             try { return $reader.ReadToEnd() } finally { $reader.Dispose() }
         }
         $manifest = Read-ZipText $pack 'SOURCES.json' | ConvertFrom-Json
-        if ($manifest.distribution -ne 'public-original' -or $manifest.license -ne 'CC0-1.0' -or $manifest.generator -ne 'scripts/SynthesizeSounds.java') {
-            throw 'Pack is not the approved original-synthesis distribution.'
+        if ($manifest.distribution -ne 'fartmc-complete' -or $manifest.license -ne 'mixed' -or $manifest.generator -ne 'scripts/build-public-pack.ps1') {
+            throw 'Pack is not the approved complete FartMC distribution.'
         }
         $expected = @('bubbles','classic','rattle','squeak','thunder','trumpet','whisper')
-        if ((($manifest.sounds.style | Sort-Object) -join ',') -cne ($expected -join ',')) { throw 'Wrong sound inventory.' }
-        if (($manifest.sounds.sha256 | Sort-Object -Unique).Count -ne 7) { throw 'Duplicate audio recordings.' }
+        if ($manifest.sounds.Count -ne 28 -or ($manifest.sounds.name | Sort-Object -Unique).Count -ne 28 -or
+            (($manifest.sounds.style | Sort-Object -Unique) -join ',') -cne ($expected -join ',')) { throw 'Wrong sound inventory.' }
+        $profiles = Get-Content sounds/profiles.json -Raw -Encoding UTF8 | ConvertFrom-Json
         $definitions = Read-ZipText $pack 'assets/fartmc/sounds.json' | ConvertFrom-Json
         $meta = Read-ZipText $pack 'pack.mcmeta' | ConvertFrom-Json
-        if (($meta.pack.min_format -join '.') -ne '88.0' -or ($meta.pack.max_format -join '.') -ne '97.1') { throw 'Wrong pack formats.' }
-        $license = Read-ZipText $pack 'LICENSE.txt'
-        if ($license -cne (Get-Content licenses/CC0-1.0.txt -Raw)) { throw 'CC0 license differs from the reviewed text.' }
-        $allowed = @('pack.mcmeta','SOURCES.json','LICENSE.txt','NOTICE.txt','assets/fartmc/sounds.json')
+        if (($meta.pack.min_format -join '.') -ne '97.1' -or ($meta.pack.max_format -join '.') -ne '97.1') { throw 'Wrong pack formats: only Minecraft 26.3 is supported.' }
+        if ((Read-ZipText $pack 'CC0-1.0.txt') -cne (Get-Content licenses/CC0-1.0.txt -Raw)) { throw 'CC0 license differs from the reviewed text.' }
+        if ((Read-ZipText $pack 'LICENSE.txt') -cne (Get-Content sounds/RIGHTS.txt -Raw -Encoding UTF8)) { throw 'Audio rights notice mismatch.' }
+        if ((Read-ZipText $pack 'PROVENANCE.json') -cne (Get-Content sounds/PROVENANCE.json -Raw -Encoding UTF8)) { throw 'Audio provenance mismatch.' }
+        $allowed = @('pack.mcmeta','SOURCES.json','LICENSE.txt','NOTICE.txt','CC0-1.0.txt','PROVENANCE.json','assets/fartmc/sounds.json')
         foreach ($sound in $manifest.sounds) {
-            if ($sound.license -ne 'CC0-1.0' -or $sound.origin -ne 'procedural synthesis, no samples') { throw 'Unknown sound rights.' }
-            $name = "assets/fartmc/sounds/$($sound.style).ogg"
+            if ($sound.name -ceq $sound.style) {
+                if ($sound.license -ne 'CC0-1.0' -or $sound.origin -ne 'procedural synthesis, no samples') { throw 'Unknown synthesized sound rights.' }
+            } else {
+                $source = @($provenance.files | Where-Object file -CEQ $sound.file)
+                if ($source.Count -ne 1 -or $sound.license -ne 'LicenseRef-User-Provided' -or
+                    $sound.origin -ne 'project-owner-provided recording' -or
+                    $sound.source_sha256 -cne $source[0].sha256 -or
+                    $sound.name -cne [IO.Path]::GetFileNameWithoutExtension($sound.file) -or
+                    $sound.file -cnotin $profiles.($sound.style)) { throw 'Unknown supplied sound or provenance mismatch.' }
+            }
+            $name = "assets/fartmc/sounds/$($sound.name).ogg"
             $allowed += $name
             $entry = $pack.GetEntry($name)
             if (!$entry) { throw "Missing sound: $name" }
@@ -63,8 +81,12 @@ try {
                 $actual = [BitConverter]::ToString($hash.ComputeHash($stream)).Replace('-','').ToLowerInvariant()
                 if ($actual -ne $sound.sha256) { throw "Audio checksum mismatch: $name" }
             } finally { $stream.Dispose(); $hash.Dispose() }
-            $definition = $definitions.($sound.style)
-            if (@($definition.sounds).Count -ne 1 -or $definition.sounds[0].name -ne "fartmc:$($sound.style)") { throw "Wrong sound definition: $name" }
+        }
+        if ((($definitions.PSObject.Properties.Name | Sort-Object) -join ',') -cne ($expected -join ',')) { throw 'Wrong profile inventory.' }
+        foreach ($style in $expected) {
+            $wanted = @("fartmc:$style") + @($profiles.$style | ForEach-Object { 'fartmc:' + [IO.Path]::GetFileNameWithoutExtension($_) })
+            $actual = @($definitions.$style.sounds | ForEach-Object name)
+            if ($actual.Count -ne 4 -or (($actual | Sort-Object) -join ',') -cne (($wanted | Sort-Object) -join ',')) { throw "Wrong variants: $style" }
         }
         $actualNames = @($pack.Entries | ForEach-Object FullName | Sort-Object)
         if (($actualNames -join ',') -cne (($allowed | Sort-Object) -join ',')) { throw 'Unexpected, duplicate or missing pack entries.' }
@@ -80,5 +102,5 @@ try {
         "$hash  $([IO.Path]::GetFileName($path))"
     }
     [IO.File]::WriteAllLines((Join-Path $root 'dist/SHA256SUMS'), $sums, [Text.UTF8Encoding]::new($false))
-    Write-Output 'Distribution checks passed: own plugin classes, GPL + source, seven original CC0 sounds, no bundled third-party binaries.'
+    Write-Output 'Distribution checks passed: GPL plugin + corresponding source; 21 approved supplied recordings + 7 original CC0 sounds; Minecraft 26.3 only.'
 } finally { Pop-Location }

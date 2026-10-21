@@ -44,7 +44,7 @@ foreach ($source in (Get-Content "$root/resource-pack/sources.json" -Raw | Conve
 }
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 [IO.File]::WriteAllText("$pack/assets/fartmc/sounds.json", ($sounds | ConvertTo-Json -Depth 8), $utf8)
-$metadata = @{ pack = @{ description='FartMC - Myinstants sound selection'; min_format=@(88,0); max_format=@(97,1) } }
+$metadata = @{ pack = @{ description='FartMC - Myinstants sound selection'; min_format=@(97,1); max_format=@(97,1) } }
 [IO.File]::WriteAllText("$pack/pack.mcmeta", ($metadata | ConvertTo-Json -Depth 5), $utf8)
 [IO.File]::WriteAllText("$pack/SOURCES.json", ($provenance | ConvertTo-Json -Depth 5), $utf8)
 Add-Type -AssemblyName System.IO.Compression.FileSystem
