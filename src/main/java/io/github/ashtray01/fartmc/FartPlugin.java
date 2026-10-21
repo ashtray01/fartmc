@@ -31,6 +31,7 @@ public final class FartPlugin extends JavaPlugin implements Listener {
 
     @Override public void onEnable() {
         saveDefaultConfig();
+        if (FoodSettings.migrate(getConfig())) saveConfig();
         enabledKey = new NamespacedKey(this, "enabled");
         hotkeysKey = new NamespacedKey(this, "hotkeys");
         autoKey = new NamespacedKey(this, "automatic");
@@ -57,6 +58,7 @@ public final class FartPlugin extends JavaPlugin implements Listener {
     void reloadFoodConfiguration() {
         foodEffects.stopAll();
         reloadConfig();
+        if (FoodSettings.migrate(getConfig())) saveConfig();
         foodItems.register();
         foodEffects.reload();
     }

@@ -84,6 +84,13 @@ foreach ($asset in $foodManifest.files) {
 }
 Copy-Item "$foodRoot/PROVENANCE.json" "$pack/FOOD_PROVENANCE.json"
 Copy-Item "$foodRoot/RIGHTS.txt" "$pack/FOOD_RIGHTS.txt"
+# New item identifiers point to the unchanged, provenance-checked source models.
+# Keep legacy definitions so saved items render before their inventory migration.
+$foodAliases = @{ belyash='belyash_station'; cheburek='khacheburek'; shaurma='poisoned_cheburek' }
+foreach ($id in $foodAliases.Keys) {
+    $definition = @{ model=@{ type='minecraft:model'; model="fartmc:item/$($foodAliases[$id])" } }
+    [IO.File]::WriteAllText("$pack/assets/fartmc/items/$id.json", ($definition | ConvertTo-Json -Depth 4), $utf8)
+}
 $temporaryZip = Join-Path $stage 'fartmc-sounds.zip'
 $archive = [IO.Compression.ZipFile]::Open($temporaryZip, 'Create')
 try {

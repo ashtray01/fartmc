@@ -39,6 +39,14 @@ try {
             }
         }
     }
+    $aliases = @{ belyash='belyash_station'; cheburek='khacheburek'; shaurma='poisoned_cheburek' }
+    foreach ($id in $aliases.Keys) {
+        $item = Read-FoodEntry "assets/fartmc/items/$id.json" | ConvertFrom-Json
+        if (@($item.PSObject.Properties).Count -ne 1 -or @($item.model.PSObject.Properties).Count -ne 2 -or
+            $item.model.type -cne 'minecraft:model' -or $item.model.model -cne "fartmc:item/$($aliases[$id])") {
+            throw "Invalid canonical food item: $id"
+        }
+    }
     if ($archive.Entries | Where-Object FullName -Like 'assets/minecraft/*') { throw 'Food pack must not replace vanilla models.' }
-    Write-Output 'FOOD PACK PASS: three 3D models, item definitions, texture hashes, UVs and seven display transforms each.'
+    Write-Output 'FOOD PACK PASS: belyash/cheburek/shaurma and legacy definitions; three original 3D models, texture hashes, UVs and display transforms.'
 } finally { $archive.Dispose() }

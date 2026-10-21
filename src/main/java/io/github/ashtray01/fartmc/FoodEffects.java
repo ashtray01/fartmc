@@ -87,7 +87,7 @@ final class FoodEffects implements Listener, AutoCloseable {
         long seconds = FoodCooldown.seconds(deadline(p), System.currentTimeMillis());
         if (seconds > 0) return "Желудок ещё не готов: ещё " + seconds + " с."
                 + (plugin.getConfig().getBoolean("foods.milk-resets-cooldown", true) ? " Выпейте молоко, чтобы сбросить кулдаун." : "");
-        if (type == FoodType.POISONED_CHEBUREK) {
+        if (type == FoodType.SHAURMA) {
             if (p.isInWater() || !FoodMotion.safeGround(FoodMotion.ground(p.getLocation().add(0, .2, 0), 4))
                     || !FoodMotion.clear(p.getWorld(), p.getBoundingBox().clone().shift(0, .7, 0)))
                 return "Для взлёта нужна безопасная поверхность и место над головой.";

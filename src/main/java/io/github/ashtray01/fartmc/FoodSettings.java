@@ -12,12 +12,33 @@ record FoodSettings(boolean enabled, int duration, long cooldownMillis, int fart
     static double bounded(double value, double fallback, double min, double max) {
         return Math.clamp(Double.isFinite(value) ? value : fallback, min, max);
     }
+    static boolean migrate(FileConfiguration c) {
+        boolean changed = false;
+        for (FoodType type : FoodType.values()) {
+            if (type.config.equals(type.legacyConfig)) continue;
+            String oldPath = type.legacyConfig.substring(0, type.legacyConfig.length() - 1);
+            if (!c.contains(oldPath, true)) continue;
+            var old = c.getConfigurationSection(oldPath);
+            if (old == null) continue;
+            for (var entry : old.getValues(true).entrySet()) {
+                if (entry.getValue() instanceof org.bukkit.configuration.ConfigurationSection) continue;
+                String key = type.config + entry.getKey();
+                Object value = entry.getValue();
+                // Upgrade the previous default, retaining custom durations and explicit new values.
+                if (type == FoodType.SHAURMA && entry.getKey().equals("duration-seconds")
+                        && value instanceof Number n && n.doubleValue() == 15) value = 20;
+                if (!c.contains(key, true)) c.set(key, value);
+            }
+            c.set(oldPath, null); changed = true;
+        }
+        return changed;
+    }
     static double number(FileConfiguration c, String key, double fallback, double min, double max) {
         return bounded(c.getDouble(key, fallback), fallback, min, max);
     }
     static FoodSettings read(FileConfiguration c, FoodType t) {
         String p = t.config;
-        boolean fire = t == FoodType.POISONED_CHEBUREK;
+        boolean fire = t == FoodType.SHAURMA;
         double maxHover = number(c, p + "maximum-hover-height", 7, 1, 7);
         double maxSpeed = number(c, p + "max-horizontal-speed", .65, 0, .65);
         return new FoodSettings(c.getBoolean(p + "enabled", true),

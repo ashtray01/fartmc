@@ -52,13 +52,13 @@ final class FoodItems implements Listener {
                     ingredient(recipe, 'W', Material.WHEAT); ingredient(recipe, 'C', Material.COOKED_BEEF);
                     ingredient(recipe, 'R', Material.ROTTEN_FLESH); ingredient(recipe, 'B', Material.BREAD);
                 }
-                case KHACHEBUREK -> {
+                case CHEBUREK -> {
                     recipe.shape("WEW", "MPM", "WBW");
                     ingredient(recipe, 'W', Material.WHEAT); ingredient(recipe, 'E', Material.EGG);
                     ingredient(recipe, 'M', Material.MILK_BUCKET); ingredient(recipe, 'P', Material.BAKED_POTATO);
                     ingredient(recipe, 'B', Material.BREAD);
                 }
-                case POISONED_CHEBUREK -> {
+                case SHAURMA -> {
                     recipe.shape("BFB", "RER", "MBM");
                     ingredient(recipe, 'B', Material.BREAD); ingredient(recipe, 'F', Material.BLAZE_POWDER);
                     ingredient(recipe, 'R', Material.ROTTEN_FLESH); ingredient(recipe, 'E', Material.FERMENTED_SPIDER_EYE);
@@ -73,20 +73,46 @@ final class FoodItems implements Listener {
     private void ingredient(ShapedRecipe recipe, char symbol, Material material) {
         recipe.setIngredient(symbol, new RecipeChoice.ExactChoice(new ItemStack(material)));
     }
-    void unregister() { for (FoodType type : FoodType.values()) Bukkit.removeRecipe(type.key()); }
+    void unregister() {
+        for (FoodType type : FoodType.values()) {
+            Bukkit.removeRecipe(type.key()); Bukkit.removeRecipe(type.legacyKey());
+        }
+    }
     void discover(Player p) {
-        for (FoodType type : FoodType.values()) if (Bukkit.getRecipe(type.key()) != null) p.discoverRecipe(type.key());
+        for (FoodType type : FoodType.values()) {
+            p.undiscoverRecipe(type.legacyKey());
+            if (Bukkit.getRecipe(type.key()) != null) p.discoverRecipe(type.key());
+        }
     }
     boolean refreshName(ItemStack item) {
         FoodType type = type(item);
         if (type == null) return false;
         ItemMeta meta = item.getItemMeta();
-        if (meta.displayName() == null) return false;
-        String previous = PlainTextComponentSerializer.plainText().serialize(meta.displayName());
-        boolean legacy = (type == FoodType.KHACHEBUREK && previous.equals("Хачебурек"))
-                || (type == FoodType.POISONED_CHEBUREK && previous.equals("Отравленный чебурек"));
-        if (!legacy) return false; // Preserve names chosen by players with an anvil.
-        meta.displayName(Component.text(type.title, NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
+        boolean changed = false;
+        if (!type.id.equals(meta.getPersistentDataContainer().get(FOOD_ID, PersistentDataType.STRING))) {
+            meta.getPersistentDataContainer().set(FOOD_ID, PersistentDataType.STRING, type.id);
+            var lore = meta.lore();
+            var plain = PlainTextComponentSerializer.plainText();
+            if (lore != null && lore.size() == 2 && plain.serialize(lore.getFirst()).equals(type.description)
+                    && plain.serialize(lore.get(1)).matches("Действие: \\d+ сек\\.")) {
+                lore = new ArrayList<>(lore);
+                lore.set(1, Component.text("Действие: " + FoodSettings.read(plugin.getConfig(), type).duration() / 20 + " сек.", NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false));
+                meta.lore(lore);
+            }
+            changed = true;
+        }
+        if (type.legacyKey().equals(meta.getItemModel())) {
+            meta.setItemModel(type.key()); changed = true;
+        }
+        String previous = meta.displayName() == null ? "" : PlainTextComponentSerializer.plainText().serialize(meta.displayName());
+        boolean legacy = (type == FoodType.CHEBUREK && previous.equals("Хачебурек"))
+                || (type == FoodType.SHAURMA && previous.equals("Отравленный чебурек"));
+        if (legacy) { // Preserve names chosen by players with an anvil, while migrating identity.
+            meta.displayName(Component.text(type.title, NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
+            changed = true;
+        }
+        if (!changed) return false;
         item.setItemMeta(meta);
         return true;
     }

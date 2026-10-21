@@ -119,10 +119,15 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
         plugin.getConfig().set("messages.actionbar-enabled", false);
         recipes();
         Player p = player(0);
+        var command = plugin.getCommand("fartmc");
+        check(command.getTabCompleter().onTabComplete(p, command, "fartmc", new String[]{"give", "Player", ""})
+                .equals(List.of("belyash", "cheburek", "shaurma")), "canonical command completions");
+        command.getExecutor().onCommand(p, command, "fartmc", new String[]{"give", "missing"});
+        check(messages.get(p.getUniqueId()).getLast().contains("<belyash|cheburek|shaurma>"), "canonical give usage");
         check(call(type("FoodItems"), "type", new ItemStack(Material.BREAD)) == null, "plain bread excluded");
         // Final cancellation, including another MONITOR handler, must prevent the queued start.
         cancelConsumption = true;
-        Bukkit.getPluginManager().callEvent(new PlayerItemConsumeEvent(p, item("khacheburek"), EquipmentSlot.HAND));
+        Bukkit.getPluginManager().callEvent(new PlayerItemConsumeEvent(p, item("cheburek"), EquipmentSlot.HAND));
         cancelConsumption = false;
         Bukkit.getScheduler().runTaskLater(this, () -> guarded(() -> {
             check(!(boolean)call(effects, "active", p), "cancelled consume never starts");
@@ -135,7 +140,7 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
         }), 2);
     }
     private void recipes() {
-        for (String id : List.of("belyash_station", "khacheburek", "poisoned_cheburek")) {
+        for (String id : List.of("belyash", "cheburek", "shaurma")) {
             ItemStack food = item(id);
             check(food.getAmount() == 1 && food.getType() == Material.BREAD, "food result " + id);
             check(food.getItemMeta().getItemModel().equals(new NamespacedKey("fartmc", id)), "item model " + id);
@@ -145,7 +150,7 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
             ItemStack[] matrix = matrix(recipe);
             ItemCraftResult result = Bukkit.getServer().craftItemResult(matrix, world);
             check(result.getResult().isSimilar(food), "native craft " + id);
-            if (id.equals("khacheburek")) {
+            if (id.equals("cheburek")) {
                 ItemStack[] remaining = result.getResultingMatrix();
                 int buckets = Arrays.stream(remaining).filter(Objects::nonNull).filter(i -> i.getType() == Material.BUCKET).mapToInt(ItemStack::getAmount).sum();
                 check(buckets == 2, "exactly two milk bucket remainders");
@@ -156,12 +161,35 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
             }
             check(Bukkit.getServer().craftItemResult(matrix, world).getResult().getType().isAir(), "custom food rejected as ingredient " + id);
         }
+        for (String[] migration : new String[][]{{"belyash_station", "belyash"}, {"khacheburek", "cheburek"}, {"poisoned_cheburek", "shaurma"}}) {
+            ItemStack old = item(migration[1]); old.setAmount(9);
+            var meta = old.getItemMeta();
+            meta.displayName(Component.text("Моя еда"));
+            if (migration[1].equals("shaurma")) {
+                var lore = new ArrayList<>(meta.lore()); lore.set(1, Component.text("Действие: 15 сек.")); meta.lore(lore);
+            }
+            NamespacedKey pdc = new NamespacedKey("fartmc", "food_id");
+            meta.getPersistentDataContainer().set(pdc, PersistentDataType.STRING, migration[0]);
+            meta.setItemModel(new NamespacedKey("fartmc", migration[0])); old.setItemMeta(meta);
+            check(call(type("FoodItems"), "type", old).equals(food(migration[1])), "old PDC recognized");
+            check((boolean)call(items, "refreshName", old), "old identity migrated");
+            check(migration[1].equals(old.getItemMeta().getPersistentDataContainer().get(pdc, PersistentDataType.STRING)), "PDC rewritten");
+            check(old.getItemMeta().getItemModel().equals(new NamespacedKey("fartmc", migration[1])), "model key migrated");
+            check(old.getAmount() == 9 && plain(old.getItemMeta().displayName()).equals("Моя еда"), "migration preserves stack and anvil name");
+            if (migration[1].equals("shaurma")) check(plain(old.getItemMeta().lore().get(1)).equals("Действие: 20 сек."), "old shaurma duration lore updated");
+            check(!(boolean)call(items, "refreshName", old), "identity migration idempotent");
+            ShapedRecipe stale = new ShapedRecipe(new NamespacedKey("fartmc", migration[0]), old);
+            stale.shape("D").setIngredient('D', Material.DIRT);
+            check(Bukkit.addRecipe(stale), "seed legacy recipe");
+        }
         call(items, "register"); call(items, "register");
+        for (String old : List.of("belyash_station", "khacheburek", "poisoned_cheburek"))
+            check(Bukkit.getRecipe(new NamespacedKey("fartmc", old)) == null, "legacy recipe removed");
         int count = 0; var iterator = Bukkit.recipeIterator();
         while (iterator.hasNext()) if (iterator.next() instanceof Keyed key && key.getKey().getNamespace().equals("fartmc")) count++;
         check(count == 3, "idempotent recipe registration");
-        for (String[] rename : new String[][]{{"khacheburek", "Хачебурек", "Чебурек загадочный"},
-                {"poisoned_cheburek", "Отравленный чебурек", "Просроченная шаурма"}}) {
+        for (String[] rename : new String[][]{{"cheburek", "Хачебурек", "Чебурек загадочный"},
+                {"shaurma", "Отравленный чебурек", "Просроченная шаурма"}}) {
             ItemStack food = item(rename[0]);
             check(plain(food.getItemMeta().displayName()).equals(rename[2]), "new food name");
             food.setAmount(7);
@@ -191,14 +219,14 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
     }
     private void health(Player p) {
         p.setHealth(18);
-        Object session = session(p, "khacheburek"); put(p, session); call(session, "begin", effects);
+        Object session = session(p, "cheburek"); put(p, session); call(session, "begin", effects);
         check(p.getHealth() == 10, "health halved");
         p.setHealth(4); call(effects, "stop", p, false);
         check(p.getHealth() == 12, "damage retained on refund");
         call(effects, "stop", p, false); check(p.getHealth() == 12, "stop idempotent");
-        p.setHealth(6); session = session(p, "khacheburek"); put(p, session); call(session, "begin", effects);
+        p.setHealth(6); session = session(p, "cheburek"); put(p, session); call(session, "begin", effects);
         check(p.getHealth() == 6, "low health never raised at start"); call(effects, "stop", p, false);
-        p.setHealth(18); session = session(p, "khacheburek"); put(p, session); call(session, "begin", effects);
+        p.setHealth(18); session = session(p, "cheburek"); put(p, session); call(session, "begin", effects);
         call(effects, "stop", p, true); check(p.getHealth() == 10, "death cleanup never refunds");
     }
     private void potions(Player p) {
@@ -231,8 +259,8 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
         check(world.getEntitiesByClass(BlockDisplay.class).isEmpty(), "stains expire");
     }
     private void ignition(Player p) {
-        plugin.getConfig().set("foods.poisoned-cheburek.ignition-chance", 1d);
-        Object settings = call(type("FoodSettings"), "read", plugin.getConfig(), food("poisoned_cheburek"));
+        plugin.getConfig().set("foods.shaurma.ignition-chance", 1d);
+        Object settings = call(type("FoodSettings"), "read", plugin.getConfig(), food("shaurma"));
         Location origin = base.clone().add(0, 6, 0);
         cancelIgnition = true;
         call(protection, "ignite", p, settings, origin);
@@ -240,9 +268,20 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
         cancelIgnition = false;
         call(protection, "ignite", p, settings, origin);
         check(world.getBlockAt(base).getType() == Material.FIRE, "permitted ignition creates fire");
+        var fireGround = (org.bukkit.util.RayTraceResult)call(type("FoodMotion"), "ground", origin, 7d);
+        check((boolean)call(type("FoodMotion"), "safeGround", fireGround), "ground below own fire remains safe; hit="
+                + (fireGround == null ? "none" : fireGround.getHitBlock().getType()));
+        check(Math.abs(fireGround.getHitPosition().getY() - 201) < .001, "fire does not raise the supporting floor");
+        var support = world.getBlockAt(base.clone().add(0, -1, 0));
+        for (Material hazard : List.of(Material.WATER, Material.LAVA)) {
+            support.setType(hazard, false);
+            Object unsafe = call(type("FoodMotion"), "ground", origin, 7d);
+            check(!(boolean)call(type("FoodMotion"), "safeGround", unsafe), "ignoring fire still detects " + hazard);
+        }
+        support.setType(Material.STONE, false);
         world.getBlockAt(base).setType(Material.AIR, false);
-        plugin.getConfig().set("foods.poisoned-cheburek.ignition-enabled", false);
-        settings = call(type("FoodSettings"), "read", plugin.getConfig(), food("poisoned_cheburek"));
+        plugin.getConfig().set("foods.shaurma.ignition-enabled", false);
+        settings = call(type("FoodSettings"), "read", plugin.getConfig(), food("shaurma"));
         call(protection, "ignite", p, settings, origin);
         check(world.getBlockAt(base).getType().isAir(), "disabled ignition preserves block");
     }
@@ -257,7 +296,7 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
     }
     private void reserve(Player p) {
         p.getPersistentDataContainer().remove(new NamespacedKey("fartmc", "food_cooldown"));
-        PlayerItemConsumeEvent first = new PlayerItemConsumeEvent(p, item("khacheburek"), EquipmentSlot.HAND);
+        PlayerItemConsumeEvent first = new PlayerItemConsumeEvent(p, item("cheburek"), EquipmentSlot.HAND);
         Bukkit.getPluginManager().callEvent(first);
         PlayerItemConsumeEvent second = new PlayerItemConsumeEvent(p, item("belyash"), EquipmentSlot.OFF_HAND);
         Bukkit.getPluginManager().callEvent(second);
@@ -265,7 +304,7 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
         Bukkit.getScheduler().runTaskLater(this, () -> guarded(() -> {
             check((boolean)call(effects, "active", p), "successful consumption starts session");
             call(effects, "stop", p, false);
-            PlayerItemConsumeEvent cooldown = new PlayerItemConsumeEvent(p, item("khacheburek"), EquipmentSlot.HAND);
+            PlayerItemConsumeEvent cooldown = new PlayerItemConsumeEvent(p, item("cheburek"), EquipmentSlot.HAND);
             Bukkit.getPluginManager().callEvent(cooldown);
             check(cooldown.isCancelled(), "cooldown remains after stop");
             cooldownAndMilk(p);
@@ -299,7 +338,7 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
             Bukkit.getPluginManager().callEvent(new PlayerItemConsumeEvent(p, new ItemStack(Material.MILK_BUCKET), EquipmentSlot.OFF_HAND));
             Bukkit.getScheduler().runTaskLater(this, () -> guarded(() -> {
                 check(!p.getPersistentDataContainer().has(key) && !visibleBars.containsKey(p.getUniqueId()), "drunk milk resets cooldown and bar");
-                PlayerItemConsumeEvent nextFood = new PlayerItemConsumeEvent(p, item("khacheburek"), EquipmentSlot.HAND);
+                PlayerItemConsumeEvent nextFood = new PlayerItemConsumeEvent(p, item("cheburek"), EquipmentSlot.HAND);
                 Bukkit.getPluginManager().callEvent(nextFood);
                 check(!nextFood.isCancelled(), "food allowed after milk");
                 Bukkit.getScheduler().runTaskLater(this, () -> guarded(() -> {
@@ -333,7 +372,7 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
         plugin.getConfig().set("foods.belyash.duration-seconds", 2);
         for (int i = 0; i < 20; i++) {
             Player p = player(i + 1); loadPlayers.add(p);
-            Object session = session(p, i % 2 == 0 ? "belyash" : "khacheburek");
+            Object session = session(p, i % 2 == 0 ? "belyash" : "cheburek");
             put(p, session); call(session, "begin", effects);
         }
         check(((Map<?, ?>)field(effects, "sessions")).size() == 20, "20 concurrent sessions");
@@ -359,13 +398,15 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
         }), 45);
     }
     private void flight() {
-        plugin.getConfig().set("foods.poisoned-cheburek.horizontal-speed", 0d);
+        plugin.getConfig().set("foods.shaurma.horizontal-speed", 0d);
+        plugin.getConfig().set("foods.shaurma.ignition-enabled", true);
         Player p = player(26);
         Entity actor = entities.stream().filter(e -> e.getUniqueId().equals(p.getUniqueId())).findFirst().orElseThrow();
         ArmorStand seat = (ArmorStand)call(type("FoodMotion"), "seat", p.getLocation(), actor);
         entities.add(seat);
         check(!seat.isVisible() && !seat.isPersistent() && !seat.isMarker(), "production seat properties");
-        Object session = session(p, "poisoned_cheburek");
+        Object session = session(p, "shaurma");
+        check((int)call(field(session, "settings"), "duration") == 400, "shaurma lasts twenty seconds");
         try { Field f = session.getClass().getDeclaredField("seat"); f.setAccessible(true); f.set(session, seat); }
         catch (Exception ex) { throw new IllegalStateException(ex); }
         put(p, session);
@@ -373,11 +414,25 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
             double height = p.getY() - 201;
             check((boolean)call(effects, "active", p), "flight remains active above safe surface");
             check(height >= 5 && height <= 7.1, "controller hovers at 5–7 blocks; actual=" + height);
-            call(effects, "stop", p, false);
-            check(!seat.isValid() && !actor.isInsideVehicle(), "flight stop removes seat and releases passenger");
-            check(p.hasPotionEffect(PotionEffectType.SLOW_FALLING), "safe landing handed to vanilla physics");
-            getLogger().info("FOOD TEST PASS: " + checks + " assertions; real recipes/remainders/entities/hover, headless player sessions, 20-session run. Client rendering not tested.");
-            cleanup();
+            // Clear the launch fire and require the running session to ignite again during hover.
+            Location origin = (Location)call(visuals, "behind", p);
+            var target = world.getBlockAt(origin.getBlockX(), 201, origin.getBlockZ());
+            check(target.getType() == Material.FIRE, "flight ignites ground");
+            target.setType(Material.AIR, false);
+            int eventsBeforeHover = ignitionEvents;
+            Bukkit.getScheduler().runTaskLater(this, () -> guarded(() -> {
+                check((boolean)call(effects, "active", p), "shaurma still flies after sixteen seconds");
+                check(p.getY() - 201 >= 5, "hover retained beyond old fifteen-second duration");
+                check(ignitionEvents > eventsBeforeHover && target.getType() == Material.FIRE, "running jet ignites ground again during hover");
+                target.setType(Material.AIR, false);
+                Bukkit.getScheduler().runTaskLater(this, () -> guarded(() -> {
+                    check(!(boolean)call(effects, "active", p), "shaurma ends after twenty seconds");
+                    check(!seat.isValid() && !actor.isInsideVehicle(), "flight end removes seat and releases passenger");
+                    check(p.hasPotionEffect(PotionEffectType.SLOW_FALLING), "safe landing handed to vanilla physics");
+                    getLogger().info("FOOD TEST PASS: " + checks + " assertions; migration/commands/recipes/milk, twenty-second flight and hover ignition, 20-session run. Client rendering not tested.");
+                    cleanup();
+                }), 85);
+            }), 200);
         }), 120);
     }
     @EventHandler(priority = EventPriority.HIGHEST) public void ignite(BlockIgniteEvent e) {

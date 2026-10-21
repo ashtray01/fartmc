@@ -24,8 +24,8 @@ final class FoodCommand implements TabExecutor {
                 if (sender instanceof Player p) items.discover(p);
                 sender.sendMessage("Рецепты FartMC (ряды верстака сверху вниз):");
                 sender.sendMessage("Беляш: пшеница/пшеница/пшеница; стейк/гнилая плоть/стейк; пшеница/хлеб/пшеница.");
-                sender.sendMessage(FoodType.KHACHEBUREK.title + ": пшеница/яйцо/пшеница; молоко/печёный картофель/молоко; пшеница/хлеб/пшеница.");
-                sender.sendMessage(FoodType.POISONED_CHEBUREK.title + ": хлеб/огненный порошок/хлеб; гнилая плоть/маринованный глаз/гнилая плоть; магмовый крем/хлеб/магмовый крем.");
+                sender.sendMessage(FoodType.CHEBUREK.title + ": пшеница/яйцо/пшеница; молоко/печёный картофель/молоко; пшеница/хлеб/пшеница.");
+                sender.sendMessage(FoodType.SHAURMA.title + ": хлеб/огненный порошок/хлеб; гнилая плоть/маринованный глаз/гнилая плоть; магмовый крем/хлеб/магмовый крем.");
             }
             case "reload" -> {
                 if (!permission(sender, "fartmc.reload")) return true;
@@ -45,7 +45,7 @@ final class FoodCommand implements TabExecutor {
                 try { if (args.length == 4) amount = Integer.parseInt(args[3]); }
                 catch (NumberFormatException ex) { amount = 0; }
                 if (target == null || type == null || args.length > 4 || amount < 1 || amount > 64) {
-                    sender.sendMessage("/fartmc give <player> <belyash|khacheburek|poisoned_cheburek> [1–64]"); return true;
+                    sender.sendMessage("/fartmc give <player> <belyash|cheburek|shaurma> [1–64]"); return true;
                 }
                 var leftovers = target.getInventory().addItem(items.create(type, amount));
                 int remaining = leftovers.values().stream().mapToInt(org.bukkit.inventory.ItemStack::getAmount).sum();
@@ -69,7 +69,7 @@ final class FoodCommand implements TabExecutor {
                 || (args[0].equalsIgnoreCase("stop") && sender.hasPermission("fartmc.admin"))))
             Bukkit.getOnlinePlayers().forEach(p -> choices.add(p.getName()));
         else if (args.length == 3 && args[0].equalsIgnoreCase("give") && sender.hasPermission("fartmc.give"))
-            choices.addAll(List.of("belyash", "khacheburek", "poisoned_cheburek"));
+            choices.addAll(List.of("belyash", "cheburek", "shaurma"));
         else if (args.length == 4 && args[0].equalsIgnoreCase("give") && sender.hasPermission("fartmc.give")) choices.addAll(List.of("1", "16", "64"));
         return choices.stream().filter(s -> s.toLowerCase(Locale.ROOT).startsWith(args[args.length - 1].toLowerCase(Locale.ROOT))).toList();
     }

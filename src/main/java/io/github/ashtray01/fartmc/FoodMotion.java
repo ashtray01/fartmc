@@ -25,8 +25,22 @@ final class FoodMotion {
     }
     static RayTraceResult ground(Location from, double distance) {
         if (!loaded(from)) return null;
-        return from.getWorld().rayTraceBlocks(from, new Vector(0, -1, 0), distance, FluidCollisionMode.ALWAYS, false);
+        Vector down = new Vector(0, -1, 0);
+        World world = from.getWorld();
+        RayTraceResult hit = world.rayTraceBlocks(from, down, distance, FluidCollisionMode.ALWAYS, false);
+        if (hit == null || hit.getHitBlock() == null || !flame(hit.getHitBlock())) return hit;
+        // Fire has a ray-trace outline but is not the supporting floor. Ignore only
+        // flames: globally ignoring passable blocks would also skip fluid hazards.
+        int bottom = Math.max(world.getMinHeight(), (int)Math.floor(from.getY() - distance));
+        for (int y = hit.getHitBlock().getY() - 1; y >= bottom; y--) {
+            Block block = world.getBlockAt(from.getBlockX(), y, from.getBlockZ());
+            if (flame(block) || block.getType().isAir()) continue;
+            RayTraceResult below = block.rayTrace(from, down, distance, FluidCollisionMode.ALWAYS);
+            if (below != null) return below;
+        }
+        return null;
     }
+    private static boolean flame(Block block) { return block.getType() == Material.FIRE || block.getType() == Material.SOUL_FIRE; }
     static boolean safeGround(RayTraceResult hit) {
         if (hit == null || hit.getHitBlock() == null) return false;
         Block block = hit.getHitBlock();

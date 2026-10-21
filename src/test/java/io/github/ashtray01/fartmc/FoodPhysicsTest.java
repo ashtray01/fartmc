@@ -28,21 +28,21 @@ class FoodPhysicsTest {
     }
     @Test void configurationRejectsNonFiniteValuesAndBoundsUnsafeSettings() {
         YamlConfiguration c = new YamlConfiguration();
-        c.set("foods.khacheburek.max-horizontal-speed", Double.POSITIVE_INFINITY);
-        c.set("foods.khacheburek.acceleration", -10);
-        c.set("foods.khacheburek.health-percent", Double.NaN);
+        c.set("foods.cheburek.max-horizontal-speed", Double.POSITIVE_INFINITY);
+        c.set("foods.cheburek.acceleration", -10);
+        c.set("foods.cheburek.health-percent", Double.NaN);
         c.set("foods.belyash.duration-seconds", -20);
         c.set("foods.belyash.accident-chance", 9);
-        c.set("foods.poisoned-cheburek.maximum-hover-height", 1000);
-        c.set("foods.poisoned-cheburek.target-hover-height", 30);
-        var water = FoodSettings.read(c, FoodType.KHACHEBUREK);
+        c.set("foods.shaurma.maximum-hover-height", 1000);
+        c.set("foods.shaurma.target-hover-height", 30);
+        var water = FoodSettings.read(c, FoodType.CHEBUREK);
         assertEquals(.65, water.maxSpeed()); assertEquals(.001, water.acceleration()); assertEquals(.5, water.healthPercent());
         var belyash = FoodSettings.read(c, FoodType.BELYASH);
         assertEquals(20, belyash.duration()); assertEquals(1, belyash.accidentChance());
-        var fire = FoodSettings.read(c, FoodType.POISONED_CHEBUREK);
+        var fire = FoodSettings.read(c, FoodType.SHAURMA);
         assertEquals(7, fire.maxHover()); assertEquals(7, fire.hover());
-        c.set("foods.poisoned-cheburek.maximum-hover-height", 1);
-        c.set("foods.poisoned-cheburek.target-hover-height", Double.NaN);
-        assertEquals(1, FoodSettings.read(c, FoodType.POISONED_CHEBUREK).hover());
+        c.set("foods.shaurma.maximum-hover-height", 1);
+        c.set("foods.shaurma.target-hover-height", Double.NaN);
+        assertEquals(1, FoodSettings.read(c, FoodType.SHAURMA).hover());
     }
 }

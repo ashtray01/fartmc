@@ -32,7 +32,7 @@ final class FoodSession {
         if (type == FoodType.BELYASH) {
             potion(PotionEffectType.POISON, settings.poison(), manager.tick);
             potion(PotionEffectType.NAUSEA, settings.nausea(), manager.tick);
-        } else if (type == FoodType.KHACHEBUREK) {
+        } else if (type == FoodType.CHEBUREK) {
             originalHealth = player.getHealth();
             credit = FoodPhysics.withheld(originalHealth, maximumHealth(), settings.healthPercent());
             if (credit > 0) {
@@ -61,11 +61,11 @@ final class FoodSession {
         if (stopped || !player.isOnline() || player.isDead() || !world.equals(player.getWorld().getUID())
                 || player.getGameMode() == GameMode.SPECTATOR || player.isFlying() || player.isGliding()) return false;
         if (age >= settings.duration()) return false;
-        if (type != FoodType.POISONED_CHEBUREK && player.isInsideVehicle()) return false;
+        if (type != FoodType.SHAURMA && player.isInsideVehicle()) return false;
         switch (type) {
             case BELYASH -> belyash(manager);
-            case KHACHEBUREK -> water(manager);
-            case POISONED_CHEBUREK -> { if (!fire(manager)) return false; }
+            case CHEBUREK -> water(manager);
+            case SHAURMA -> { if (!fire(manager)) return false; }
         }
         age++;
         return true;
@@ -128,7 +128,7 @@ final class FoodSession {
         if (!dead && !player.isDead()) {
             if (credit > 0) player.setHealth(Math.min(maximumHealth(),
                     FoodPhysics.restored(player.getHealth(), credit, originalHealth, maximumHealth())));
-            if (type == FoodType.POISONED_CHEBUREK && settings.safeLanding()) m.landing(player);
+            if (type == FoodType.SHAURMA && settings.safeLanding()) m.landing(player);
             applyingPotion = true;
             try {
                 for (var entry : potions.entrySet()) {

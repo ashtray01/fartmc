@@ -35,7 +35,7 @@ foods:
     accident-chance: 0.35
     stain-duration-seconds: 10
     cooldown-seconds: 45
-  khacheburek:
+  cheburek:
     enabled: true
     duration-seconds: 12
     max-horizontal-speed: 0.65
@@ -44,9 +44,9 @@ foods:
     health-percent: 0.50
     jet-length: 3.0
     cooldown-seconds: 45
-  poisoned-cheburek:
+  shaurma:
     enabled: true
-    duration-seconds: 15
+    duration-seconds: 20
     target-hover-height: 6.0
     maximum-hover-height: 7.0
     jet-length: 7.0

@@ -64,6 +64,7 @@ try {
         if ((Read-ZipText $pack 'FOOD_PROVENANCE.json') -cne (Get-Content resource-pack/food/PROVENANCE.json -Raw -Encoding UTF8) -or
             (Read-ZipText $pack 'FOOD_RIGHTS.txt') -cne (Get-Content resource-pack/food/RIGHTS.txt -Raw -Encoding UTF8)) { throw 'Food provenance differs.' }
         $allowed += @($food.files.path)
+        $allowed += @('belyash','cheburek','shaurma' | ForEach-Object { "assets/fartmc/items/$_.json" })
         foreach ($sound in $manifest.sounds) {
             if ($sound.name -ceq $sound.style) {
                 if ($sound.license -ne 'CC0-1.0' -or $sound.origin -ne 'procedural synthesis, no samples') { throw 'Unknown synthesized sound rights.' }
