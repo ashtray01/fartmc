@@ -62,15 +62,28 @@ foreach ($profile in $profiles.PSObject.Properties) {
 }
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 [IO.File]::WriteAllText("$pack/assets/fartmc/sounds.json", ($sounds | ConvertTo-Json -Depth 8), $utf8)
-$meta = @{pack=@{description='FartMC - 28 sounds for Minecraft 26.1-26.3'; min_format=@(84,0); max_format=@(97,1)}}
+$meta = @{pack=@{description='FartMC - 3 foods and 28 sounds for Minecraft 26.1-26.3'; min_format=@(84,0); max_format=@(97,1)}}
 [IO.File]::WriteAllText("$pack/pack.mcmeta", ($meta | ConvertTo-Json -Depth 5), $utf8)
 $manifest = @{distribution='fartmc-complete'; generator='scripts/build-public-pack.ps1'; license='mixed'; sounds=$sources}
 [IO.File]::WriteAllText("$pack/SOURCES.json", ($manifest | ConvertTo-Json -Depth 8), $utf8)
 Copy-Item "$root/licenses/CC0-1.0.txt" "$pack/CC0-1.0.txt"
 Copy-Item "$root/sounds/PROVENANCE.json" "$pack/PROVENANCE.json"
 Copy-Item "$root/sounds/RIGHTS.txt" "$pack/LICENSE.txt"
-[IO.File]::WriteAllText("$pack/NOTICE.txt", 'FartMC: 21 project-owner-provided recordings plus 7 original synthesized sounds. CC0 applies only to synthesized sounds; see SOURCES.json, PROVENANCE.json and LICENSE.txt. Code: GPL-3.0-only at https://github.com/ashtray01/fartmc .', $utf8)
+[IO.File]::WriteAllText("$pack/NOTICE.txt", 'FartMC: 21 project-owner-provided recordings plus 7 original synthesized sounds. CC0 applies only to synthesized sounds; see SOURCES.json, PROVENANCE.json and LICENSE.txt. Three supplied food models and textures: see FOOD_PROVENANCE.json and FOOD_RIGHTS.txt. Code: GPL-3.0-only at https://github.com/ashtray01/fartmc .', $utf8)
 Add-Type -AssemblyName System.IO.Compression.FileSystem
+$foodRoot = Join-Path $root 'resource-pack/food'
+$foodManifest = Get-Content "$foodRoot/PROVENANCE.json" -Raw -Encoding UTF8 | ConvertFrom-Json
+if ($foodManifest.files.Count -ne 9) { throw 'Expected exactly nine supplied food assets.' }
+foreach ($asset in $foodManifest.files) {
+    if ($asset.path -notmatch '^assets/fartmc/(items|models/item|textures/item)/(belyash_station|khacheburek|poisoned_cheburek)\.(json|png)$') { throw 'Unexpected food asset path.' }
+    $sourceFile = Join-Path $foodRoot $asset.path
+    if ((Get-FileHash $sourceFile -Algorithm SHA256).Hash -ine $asset.sha256) { throw "Food asset hash mismatch: $($asset.path)" }
+    $destination = Join-Path $pack $asset.path
+    New-Item -ItemType Directory -Force (Split-Path $destination -Parent) | Out-Null
+    Copy-Item -LiteralPath $sourceFile -Destination $destination
+}
+Copy-Item "$foodRoot/PROVENANCE.json" "$pack/FOOD_PROVENANCE.json"
+Copy-Item "$foodRoot/RIGHTS.txt" "$pack/FOOD_RIGHTS.txt"
 $temporaryZip = Join-Path $stage 'fartmc-sounds.zip'
 $archive = [IO.Compression.ZipFile]::Open($temporaryZip, 'Create')
 try {
@@ -81,4 +94,5 @@ try {
     }
 } finally { $archive.Dispose() }
 Copy-Item $temporaryZip "$root/dist/fartmc-sounds.zip" -Force
+& "$PSScriptRoot/test-food-pack.ps1" -PackPath "$root/dist/fartmc-sounds.zip"
 Write-Output "Complete sound pack: $root/dist/fartmc-sounds.zip (21 supplied + 7 synthesized sounds)"

@@ -5,6 +5,7 @@ param(
     [switch]$Offline,
     [switch]$AcceptEula,
     [switch]$Smoke,
+    [switch]$FoodTests,
     [switch]$SkipBuild,
     [switch]$Update,
     [switch]$WithSounds,
@@ -14,6 +15,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
+if ($FoodTests -and !$Smoke) { throw 'Food integration tests require the isolated -Smoke runtime.' }
 if (!$JavaHome) {
     $candidate = Get-ChildItem 'C:\Program Files\Eclipse Adoptium' -Directory -ErrorAction SilentlyContinue |
         Where-Object Name -Like 'jdk-25*' | Select-Object -First 1
@@ -70,7 +72,7 @@ if ($Smoke) {
     # Never share worlds, logs, settings or listening ports with an interactive server.
     Add-Content "$runtime/server.properties" 'server-port=25566' -Encoding ASCII
     New-Item -ItemType Directory -Force "$runtime/plugins/FartPlugin" | Out-Null
-    $config = (Get-Content "$root/src/main/resources/config.yml" -Raw).
+    $config = (Get-Content "$root/src/main/resources/config.yml" -Raw -Encoding UTF8).
         Replace('port: 8123', 'port: 8124').
         Replace('http://127.0.0.1:8123/', 'http://127.0.0.1:8124/')
     [IO.File]::WriteAllText("$runtime/plugins/FartPlugin/config.yml", $config, [Text.UTF8Encoding]::new($false))
@@ -111,6 +113,18 @@ try {
         }
     }
     if (!$ready) { throw 'Server did not become ready. Inspect smoke stdout/stderr and logs/latest.log.' }
+    if ($FoodTests) {
+        $foodReady = $false
+        $foodStarted = Get-Date
+        while (!$process.HasExited -and ((Get-Date) - $foodStarted).TotalSeconds -lt 60) {
+            $content = Get-Content $log -Raw
+            if ($content -match 'FOOD TEST FAIL') { throw 'Food integration assertions failed. Inspect logs/latest.log.' }
+            if ($content -match 'FOOD TEST PASS:') { $foodReady = $true; break }
+            Start-Sleep -Milliseconds 500
+        }
+        if (!$foodReady) { throw 'Food integration test did not complete.' }
+        Write-Output ($content.Split("`n") | Where-Object { $_ -match 'FOOD TEST PASS:' })
+    }
     if ($WithSounds) {
         $downloaded = Join-Path $runtime 'smoke-pack.zip'
         $client = New-Object System.Net.WebClient
@@ -124,6 +138,8 @@ try {
     }
     $process.StandardInput.WriteLine('fartreload')
     $process.StandardInput.WriteLine('fart help')
+    $process.StandardInput.WriteLine('fartmc recipes')
+    $process.StandardInput.WriteLine('fartmc reload')
     $process.StandardInput.WriteLine('stop')
     $process.StandardInput.Flush()
     if (!$process.WaitForExit(60000)) { throw 'Server did not stop within 60 seconds.' }

@@ -59,7 +59,11 @@ try {
         if ((Read-ZipText $pack 'CC0-1.0.txt') -cne (Get-Content licenses/CC0-1.0.txt -Raw)) { throw 'CC0 license differs from the reviewed text.' }
         if ((Read-ZipText $pack 'LICENSE.txt') -cne (Get-Content sounds/RIGHTS.txt -Raw -Encoding UTF8)) { throw 'Audio rights notice mismatch.' }
         if ((Read-ZipText $pack 'PROVENANCE.json') -cne (Get-Content sounds/PROVENANCE.json -Raw -Encoding UTF8)) { throw 'Audio provenance mismatch.' }
-        $allowed = @('pack.mcmeta','SOURCES.json','LICENSE.txt','NOTICE.txt','CC0-1.0.txt','PROVENANCE.json','assets/fartmc/sounds.json')
+        $allowed = @('pack.mcmeta','SOURCES.json','LICENSE.txt','NOTICE.txt','CC0-1.0.txt','PROVENANCE.json','assets/fartmc/sounds.json','FOOD_PROVENANCE.json','FOOD_RIGHTS.txt')
+        $food = Get-Content resource-pack/food/PROVENANCE.json -Raw -Encoding UTF8 | ConvertFrom-Json
+        if ((Read-ZipText $pack 'FOOD_PROVENANCE.json') -cne (Get-Content resource-pack/food/PROVENANCE.json -Raw -Encoding UTF8) -or
+            (Read-ZipText $pack 'FOOD_RIGHTS.txt') -cne (Get-Content resource-pack/food/RIGHTS.txt -Raw -Encoding UTF8)) { throw 'Food provenance differs.' }
+        $allowed += @($food.files.path)
         foreach ($sound in $manifest.sounds) {
             if ($sound.name -ceq $sound.style) {
                 if ($sound.license -ne 'CC0-1.0' -or $sound.origin -ne 'procedural synthesis, no samples') { throw 'Unknown synthesized sound rights.' }
@@ -91,6 +95,7 @@ try {
         $actualNames = @($pack.Entries | ForEach-Object FullName | Sort-Object)
         if (($actualNames -join ',') -cne (($allowed | Sort-Object) -join ',')) { throw 'Unexpected, duplicate or missing pack entries.' }
     } finally { $pack.Dispose() }
+    & "$PSScriptRoot/test-food-pack.ps1" -PackPath $packPath
 
     Copy-Item $jars[0].FullName dist/ -Force
     Copy-Item LICENSE, NOTICE.md dist/ -Force

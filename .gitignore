@@ -5,3 +5,4 @@ test-server/runtime*/
 *.jar
 *.log
 .idea/
+temp/

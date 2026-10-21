@@ -1,0 +1,2 @@
+# Preserve the exact supplied asset bytes recorded in FOOD_PROVENANCE.json.
+resource-pack/food/assets/** -text

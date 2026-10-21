@@ -68,7 +68,7 @@ final class PackServer implements Listener, AutoCloseable {
         Player player = event.getPlayer();
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             if (player.isOnline() && server != null) {
-                player.setResourcePack(packId, url, hash, Component.text("Звуки FartMC (необязательно)"), false);
+                player.setResourcePack(packId, url, hash, Component.text("Звуки и 3D-еда FartMC (необязательно)"), false);
             }
         }, 30);
     }

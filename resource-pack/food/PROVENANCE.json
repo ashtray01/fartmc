@@ -1,0 +1,43 @@
+{
+  "origin": "Owner-supplied temp/FartMC_ResourcePack_1.21.11.zip, requested integration 2026-10-21",
+  "license": "LicenseRef-User-Provided-Models",
+  "source_sha256": "d75e8bdb1a63e35745cb223972dcced639b761a69fc3e883956e8b0aa0312c6f",
+  "files": [
+    {
+      "path": "assets/fartmc/items/belyash_station.json",
+      "sha256": "4f2948b409444d011a779d8ceb9f5f3df9df690951a82a8b75febdb83cbfcb72"
+    },
+    {
+      "path": "assets/fartmc/items/khacheburek.json",
+      "sha256": "bfb7258b21cf0dcb78c91e8d3a98cdef1bae39101883be69f29da9a05376fdc1"
+    },
+    {
+      "path": "assets/fartmc/items/poisoned_cheburek.json",
+      "sha256": "e61bde658b6779b1c1a423ca477e423b83a7e463b1b9d5ed4e76ae6f17e9a689"
+    },
+    {
+      "path": "assets/fartmc/models/item/belyash_station.json",
+      "sha256": "005262795e6221e64d91d2c1122d337f91bccdcf1015b36f5f1f4858f2840b45"
+    },
+    {
+      "path": "assets/fartmc/models/item/khacheburek.json",
+      "sha256": "2857737fa9ae993f5f9ce39b77fd0d893817e881c448b7b104d222ac0c482267"
+    },
+    {
+      "path": "assets/fartmc/models/item/poisoned_cheburek.json",
+      "sha256": "aafbbc0d2966ad810b682ee9a5fdc530c6681ab8ab103eb13b3f96bdf5774cab"
+    },
+    {
+      "path": "assets/fartmc/textures/item/belyash_station.png",
+      "sha256": "00d47f05a82e31f4d9dc1822518881987f27472b876a5e5ccba1cda8929c8769"
+    },
+    {
+      "path": "assets/fartmc/textures/item/khacheburek.png",
+      "sha256": "f32ef9eee59cb40b58f09103d3fa90d834ef271de7f0b78c587bf861e603daa6"
+    },
+    {
+      "path": "assets/fartmc/textures/item/poisoned_cheburek.png",
+      "sha256": "ef3132abd5493f3ca654ae7f8c3e5319f8bda49f6aefa12473749df0db109698"
+    }
+  ]
+}

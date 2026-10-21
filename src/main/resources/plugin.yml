@@ -1,11 +1,15 @@
 name: FartPlugin
-version: '2.2.0'
+version: '2.3.0'
 main: io.github.ashtray01.fartmc.FartPlugin
 api-version: '26.1'
 description: Vanilla-client fart soundscapes and surprise encounters
 authors: [ashtray01]
 website: https://github.com/ashtray01/fartmc
+softdepend: [WorldGuard]
 commands:
+  fartmc:
+    description: Reactive food, recipes and administration
+    usage: /fartmc recipes|give|stop|reload
   fart:
     description: Fart, select a style or change personal settings
     usage: /fart [style|toggle|hotkeys|auto|help|player]
@@ -14,6 +18,19 @@ commands:
     description: Reload configuration
     permission: fartplugin.reload
 permissions:
+  fartmc.admin:
+    default: op
+    children:
+      fartmc.give: true
+      fartmc.reload: true
+  fartmc.give:
+    default: op
+  fartmc.reload:
+    default: op
+  fartmc.use:
+    default: true
+  fartmc.craft:
+    default: true
   fartplugin.use:
     default: true
   fartplugin.others:

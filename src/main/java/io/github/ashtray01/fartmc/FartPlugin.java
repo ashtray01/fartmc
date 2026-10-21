@@ -23,6 +23,8 @@ public final class FartPlugin extends JavaPlugin implements Listener {
     private Set<Pair> close = new HashSet<>();
     private NamespacedKey enabledKey, hotkeysKey, autoKey;
     private PackServer pack;
+    private FoodItems foodItems;
+    private FoodEffects foodEffects;
     private record Pair(UUID a, UUID b) {
         static Pair of(UUID a, UUID b) { return a.compareTo(b) < 0 ? new Pair(a,b) : new Pair(b,a); }
     }
@@ -35,10 +37,50 @@ public final class FartPlugin extends JavaPlugin implements Listener {
         getServer().getPluginManager().registerEvents(this, this);
         pack = new PackServer(this);
         pack.start();
+        foodItems = new FoodItems(this);
+        foodItems.register();
+        foodEffects = new FoodEffects(this);
+        getServer().getPluginManager().registerEvents(foodItems, this);
+        getServer().getPluginManager().registerEvents(foodEffects, this);
+        FoodCommand foodCommand = new FoodCommand(this, foodItems, foodEffects);
+        Objects.requireNonNull(getCommand("fartmc")).setExecutor(foodCommand);
+        Objects.requireNonNull(getCommand("fartmc")).setTabCompleter(foodCommand);
         getServer().getScheduler().runTaskTimer(this, this::ambient, 40, 40);
         getLogger().info("FartPlugin " + getPluginMeta().getVersion() + " ready; 7 sound styles; no client mod required.");
     }
-    @Override public void onDisable() { if (pack != null) pack.close(); }
+    @Override public void onDisable() {
+        if (foodEffects != null) foodEffects.close();
+        if (foodItems != null) foodItems.unregister();
+        if (pack != null) pack.close();
+    }
+
+    void reloadFoodConfiguration() {
+        foodEffects.stopAll();
+        reloadConfig();
+        foodItems.register();
+        foodEffects.reload();
+    }
+    boolean foodParticipating(Player p) { return setting(p, enabledKey); }
+    boolean foodViewer(Player source, Player viewer) {
+        double radius = bounded("sound-radius", 15, 64);
+        return viewer.getWorld().equals(source.getWorld()) && setting(viewer, enabledKey) && viewer.canSee(source)
+                && (viewer.equals(source) || viewer.getLocation().distanceSquared(source.getLocation()) <= radius * radius);
+    }
+    void foodSound(Player source, Style style) {
+        long seed = random.nextLong();
+        float pitch = .88f + random.nextFloat() * .24f;
+        float volume = .5f + random.nextFloat() * .2f;
+        for (Player listener : source.getWorld().getPlayers()) if (foodViewer(source, listener)) {
+            if (pack.loaded(listener)) listener.playSound(source, "fartmc:" + style.name().toLowerCase(Locale.ROOT),
+                    SoundCategory.PLAYERS, volume, pitch, seed);
+            else listener.playSound(source, style.sound, SoundCategory.PLAYERS, style.volume * volume,
+                    Math.clamp(style.pitch * pitch, .5f, 2f));
+        }
+    }
+    void foodSound(Player source, String sound, float volume, float pitch) {
+        for (Player listener : source.getWorld().getPlayers()) if (foodViewer(source, listener))
+            listener.playSound(source, sound, SoundCategory.PLAYERS, volume, pitch);
+    }
 
     private boolean setting(Player p, NamespacedKey key) {
         return p.getPersistentDataContainer().getOrDefault(key, PersistentDataType.BYTE, (byte)1) != 0;
@@ -62,6 +104,7 @@ public final class FartPlugin extends JavaPlugin implements Listener {
     }
     private boolean chance(String key, double fallback) { return random.nextDouble() < bounded(key, fallback, 1); }
     private boolean fart(Player p, Style requested, boolean auto) {
+        if (foodEffects != null && foodEffects.active(p)) return false;
         if (!(auto ? automatic(p) : eligible(p))) return false;
         long now = System.nanoTime() / 1_000_000;
         if (!logic.acquire(p.getUniqueId(), now, auto,
@@ -140,6 +183,7 @@ public final class FartPlugin extends JavaPlugin implements Listener {
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void eat(PlayerItemConsumeEvent e) {
         Player p = e.getPlayer();
+        if (FoodItems.marked(e.getItem())) return;
         if (!e.getItem().getType().isEdible() || !automatic(p) || !chance("automatic.food-chance", .35)) return;
         getServer().getScheduler().runTaskLater(this, () -> fart(p, null, true), 60 + random.nextInt(100));
     }
@@ -183,7 +227,7 @@ public final class FartPlugin extends JavaPlugin implements Listener {
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (command.getName().equalsIgnoreCase("fartreload")) {
             if (!sender.hasPermission("fartplugin.reload")) { sender.sendMessage("Нет права fartplugin.reload."); return true; }
-            reloadConfig(); sender.sendMessage("FartPlugin: конфигурация обновлена. Изменения ресурспака — после рестарта."); return true;
+            reloadFoodConfiguration(); sender.sendMessage("FartPlugin: конфигурация обновлена. Изменения ресурспака — после рестарта."); return true;
         }
         if (!sender.hasPermission("fartplugin.use")) return true;
         String arg = args.length > 0 ? args[0].toLowerCase(Locale.ROOT) : "";

@@ -22,6 +22,11 @@ No external implementation binary, decompiled code or unapproved audio is bundle
 
 ## Dependencies (not bundled)
 
+Food models and textures supplied for the 2.3.0 update are recorded separately in
+resource-pack/food/PROVENANCE.json and resource-pack/food/RIGHTS.txt. They are not
+relicensed under the code's GPL or synthesized audio's CC0. The combined pack
+includes those records as FOOD_PROVENANCE.json and FOOD_RIGHTS.txt.
+
 - Paper API: provided; GPLv3/MIT upstream — https://github.com/PaperMC/Paper/blob/main/LICENSE.md
 - Adventure: provided by Paper, MIT — https://github.com/KyoriPowered/adventure/blob/main/LICENSE
 - JUnit Jupiter: tests only, EPL-2.0 — https://github.com/junit-team/junit5/blob/main/LICENSE.md

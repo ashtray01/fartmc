@@ -22,3 +22,47 @@ resource-pack:
   bind: 127.0.0.1
   port: 8123
   url: http://127.0.0.1:8123/fartmc.zip
+
+foods:
+  belyash:
+    enabled: true
+    duration-seconds: 30
+    fart-interval-ticks: 8
+    poison-amplifier: 0
+    nausea-amplifier: 0
+    accident-chance: 0.35
+    stain-duration-seconds: 10
+    cooldown-seconds: 45
+  khacheburek:
+    enabled: true
+    duration-seconds: 12
+    max-horizontal-speed: 0.65
+    initial-horizontal-speed: 0.45
+    acceleration: 0.04
+    health-percent: 0.50
+    jet-length: 3.0
+    cooldown-seconds: 45
+  poisoned-cheburek:
+    enabled: true
+    duration-seconds: 15
+    target-hover-height: 6.0
+    maximum-hover-height: 7.0
+    jet-length: 7.0
+    horizontal-speed: 0.15
+    ignition-enabled: true
+    ignition-interval-ticks: 8
+    ignition-chance: 0.40
+    ignite-entities: true
+    ignite-players: false
+    safe-landing: true
+    cooldown-seconds: 60
+effects:
+  particles-enabled: true
+  sounds-enabled: true
+  # Per source per visual update; delivered only to nearby participating viewers.
+  particles-per-player-limit: 50
+  max-stains: 120
+  respect-protected-regions: true
+  # Lifecycle cleanup is mandatory, not configurable.
+messages:
+  actionbar-enabled: true
