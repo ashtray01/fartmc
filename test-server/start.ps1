@@ -24,12 +24,42 @@ if (!$JavaHome) {
 if (!$JavaHome -or !(Test-Path "$JavaHome/bin/java.exe")) { throw 'Install Java 25 and set JAVA_HOME.' }
 # Paper's stable release for the 26.1 family is 26.1.2.
 if ($Version -eq '26.1') { $Version = '26.1.2' }
+$runtimeName = if ($Smoke) { "runtime-$Version-smoke" } else { "runtime-$Version" }
+$runtime = Join-Path $PSScriptRoot $runtimeName
+New-Item -ItemType Directory -Force $runtime | Out-Null
+# Hold this handle through preparation and the entire server lifetime. A stale file
+# is harmless: the OS releases the handle when the launcher exits or crashes.
+try {
+    $launchLock = [IO.File]::Open((Join-Path $runtime '.launcher.lock'), 'OpenOrCreate', 'ReadWrite', 'None')
+} catch [IO.IOException] {
+    throw "Server already running or being prepared in $runtime. Stop it in its console before starting another copy."
+}
+try {
+    # Also detect servers started directly with Java or with an older launcher.
+    # Probe the existing Minecraft lock without writing, deleting or truncating it.
+    $levelName = 'world'
+    $propertiesPath = Join-Path $runtime 'server.properties'
+    if (Test-Path -LiteralPath $propertiesPath) {
+        $levelLine = Get-Content -LiteralPath $propertiesPath | Where-Object { $_ -match '^level-name=' } | Select-Object -Last 1
+        if ($levelLine) { $levelName = $levelLine.Substring('level-name='.Length).Trim() }
+    }
+    $worldLockPath = Join-Path (Join-Path $runtime $levelName) 'session.lock'
+    if (Test-Path -LiteralPath $worldLockPath) {
+        $worldLock = $null
+        try {
+            $worldLock = [IO.File]::Open($worldLockPath, 'Open', 'ReadWrite', 'ReadWrite')
+            $worldLock.Lock(0, 1)
+            $worldLock.Unlock(0, 1)
+        } catch [IO.IOException] {
+            throw "Minecraft world is already in use: $worldLockPath. Stop the existing server with 'stop', then run start-server.bat again."
+        } finally {
+            if ($worldLock) { $worldLock.Dispose() }
+        }
+    }
 if (!$SkipBuild) { & "$root/scripts/build.ps1" -JavaHome $JavaHome }
 [xml]$pom = Get-Content "$root/pom.xml" -Raw
 $plugin = Join-Path $root "target/fartplugin-$($pom.project.version).jar"
 if (!(Test-Path $plugin)) { throw 'Build plugin first.' }
-$runtimeName = if ($Smoke) { "runtime-$Version-smoke" } else { "runtime-$Version" }
-$runtime = Join-Path $PSScriptRoot $runtimeName
 New-Item -ItemType Directory -Force "$runtime/plugins" | Out-Null
 if ($AcceptEula) { Set-Content "$runtime/eula.txt" 'eula=true' -Encoding ASCII }
 if (!(Test-Path "$runtime/eula.txt") -or !(Select-String -Path "$runtime/eula.txt" -Pattern '^eula=true$' -Quiet)) {
@@ -157,4 +187,7 @@ try {
     if ($stdout) { $stdout.Result | Set-Content "$runtime/smoke-stdout.log" }
     if ($stderr) { $stderr.Result | Set-Content "$runtime/smoke-stderr.log" }
     $process.Dispose()
+}
+} finally {
+    $launchLock.Dispose()
 }
