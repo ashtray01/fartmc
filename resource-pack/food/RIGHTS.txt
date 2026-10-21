@@ -4,6 +4,8 @@ Supplied by the project owner in temp/FartMC_ResourcePack_1.21.11.zip on
 2026-10-21 with an explicit request to integrate these assets into the update
 and install them on the local test server. Original archive and individual
 file SHA-256 hashes are recorded in PROVENANCE.json.
+The owner also requested committing and pushing the updated project to GitHub
+on 2026-10-21, including these integrated assets.
 
 LicenseRef-User-Provided-Models identifies this provenance statement, not a
 new license grant. No independent upstream license was supplied. These assets

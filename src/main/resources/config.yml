@@ -24,6 +24,8 @@ resource-pack:
   url: http://127.0.0.1:8123/fartmc.zip
 
 foods:
+  # Only successfully drinking milk resets the shared food cooldown.
+  milk-resets-cooldown: true
   belyash:
     enabled: true
     duration-seconds: 30
@@ -66,3 +68,4 @@ effects:
   # Lifecycle cleanup is mandatory, not configurable.
 messages:
   actionbar-enabled: true
+  cooldown-bar-enabled: true

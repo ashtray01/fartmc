@@ -14,6 +14,9 @@ import org.bukkit.potion.*;
 import org.bukkit.util.Vector;
 import java.lang.reflect.*;
 import java.util.*;
+import net.kyori.adventure.bossbar.BossBar;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 /** Runs only as a separate test JAR on the isolated smoke server. No production test commands. */
 public final class FoodIntegrationPlugin extends JavaPlugin implements Listener {
@@ -30,6 +33,8 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
     private Pig rider;
     private double startY;
     private final List<Player> loadPlayers = new ArrayList<>();
+    private final Map<UUID, BossBar> visibleBars = new HashMap<>();
+    private final Map<UUID, List<String>> messages = new HashMap<>();
 
     @Override public void onEnable() {
         Bukkit.getPluginManager().registerEvents(this, this);
@@ -76,7 +81,14 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
                 case "getGameMode" -> GameMode.SURVIVAL;
                 case "isFlying", "isGliding", "isOp" -> false;
                 case "getName" -> "FoodProbe" + index;
-                case "sendMessage", "sendActionBar", "playSound", "spawnParticle" -> null;
+                case "sendMessage" -> {
+                    if (args[0] instanceof Component component) messages.computeIfAbsent(actor.getUniqueId(), k -> new ArrayList<>()).add(plain(component));
+                    else if (args[0] instanceof String text) messages.computeIfAbsent(actor.getUniqueId(), k -> new ArrayList<>()).add(text);
+                    yield null;
+                }
+                case "showBossBar" -> { visibleBars.put(actor.getUniqueId(), (BossBar)args[0]); yield null; }
+                case "hideBossBar" -> { visibleBars.remove(actor.getUniqueId()); yield null; }
+                case "sendActionBar", "playSound", "spawnParticle" -> null;
                 case "equals" -> proxy == args[0] || actor == args[0];
                 case "hashCode" -> actor.getUniqueId().hashCode();
                 case "toString" -> "FoodProbe" + index;
@@ -148,6 +160,18 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
         int count = 0; var iterator = Bukkit.recipeIterator();
         while (iterator.hasNext()) if (iterator.next() instanceof Keyed key && key.getKey().getNamespace().equals("fartmc")) count++;
         check(count == 3, "idempotent recipe registration");
+        for (String[] rename : new String[][]{{"khacheburek", "Хачебурек", "Чебурек загадочный"},
+                {"poisoned_cheburek", "Отравленный чебурек", "Просроченная шаурма"}}) {
+            ItemStack food = item(rename[0]);
+            check(plain(food.getItemMeta().displayName()).equals(rename[2]), "new food name");
+            food.setAmount(7);
+            var meta = food.getItemMeta(); meta.displayName(Component.text(rename[1])); food.setItemMeta(meta);
+            check((boolean)call(items, "refreshName", food), "legacy item renamed");
+            check(food.getAmount() == 7 && plain(food.getItemMeta().displayName()).equals(rename[2]), "rename preserves amount");
+            check(food.getItemMeta().getItemModel().equals(new NamespacedKey("fartmc", rename[0])), "rename preserves model");
+            meta = food.getItemMeta(); meta.displayName(Component.text("Моя еда")); food.setItemMeta(meta);
+            check(!(boolean)call(items, "refreshName", food), "anvil name preserved");
+        }
     }
     private ItemStack[] matrix(ShapedRecipe recipe) {
         ItemStack[] matrix = new ItemStack[9];
@@ -244,7 +268,65 @@ public final class FoodIntegrationPlugin extends JavaPlugin implements Listener 
             PlayerItemConsumeEvent cooldown = new PlayerItemConsumeEvent(p, item("khacheburek"), EquipmentSlot.HAND);
             Bukkit.getPluginManager().callEvent(cooldown);
             check(cooldown.isCancelled(), "cooldown remains after stop");
-            load();
+            cooldownAndMilk(p);
+        }), 2);
+    }
+    private String plain(Component component) { return PlainTextComponentSerializer.plainText().serialize(component); }
+    private long readyMessages(Player p) {
+        return messages.getOrDefault(p.getUniqueId(), List.of()).stream().filter(s -> s.equals("Желудок готов! Можно снова есть.")).count();
+    }
+    private void cooldownAndMilk(Player p) {
+        NamespacedKey key = new NamespacedKey("fartmc", "food_cooldown");
+        long end = p.getPersistentDataContainer().get(key, PersistentDataType.LONG);
+        call(effects, "showStatus", p, end - 1501);
+        check(plain(visibleBars.get(p.getUniqueId()).name()).contains("2 с"), "visible countdown rounds up");
+        long before = readyMessages(p);
+        call(effects, "showStatus", p, end);
+        check(!visibleBars.containsKey(p.getUniqueId()) && !p.getPersistentDataContainer().has(key), "expired cooldown clears bar and PDC");
+        call(effects, "showStatus", p, end + 1);
+        check(readyMessages(p) == before + 1, "readiness notification once");
+        long future = System.currentTimeMillis() + 45000;
+        p.getPersistentDataContainer().set(key, PersistentDataType.LONG, future);
+        call(effects, "recover", p);
+        check(visibleBars.containsKey(p.getUniqueId()), "login recovers countdown");
+        cancelConsumption = true;
+        Bukkit.getPluginManager().callEvent(new PlayerItemConsumeEvent(p, new ItemStack(Material.MILK_BUCKET), EquipmentSlot.OFF_HAND));
+        cancelConsumption = false;
+        Bukkit.getScheduler().runTaskLater(this, () -> guarded(() -> {
+            check(p.getPersistentDataContainer().get(key, PersistentDataType.LONG) == future, "cancelled milk preserves cooldown");
+            Bukkit.getPluginManager().callEvent(new PlayerItemConsumeEvent(p, new ItemStack(Material.BREAD), EquipmentSlot.HAND));
+            check(p.getPersistentDataContainer().has(key), "ordinary food does not reset cooldown");
+            Bukkit.getPluginManager().callEvent(new PlayerItemConsumeEvent(p, new ItemStack(Material.MILK_BUCKET), EquipmentSlot.OFF_HAND));
+            Bukkit.getScheduler().runTaskLater(this, () -> guarded(() -> {
+                check(!p.getPersistentDataContainer().has(key) && !visibleBars.containsKey(p.getUniqueId()), "drunk milk resets cooldown and bar");
+                PlayerItemConsumeEvent nextFood = new PlayerItemConsumeEvent(p, item("khacheburek"), EquipmentSlot.HAND);
+                Bukkit.getPluginManager().callEvent(nextFood);
+                check(!nextFood.isCancelled(), "food allowed after milk");
+                Bukkit.getScheduler().runTaskLater(this, () -> guarded(() -> {
+                    check((boolean)call(effects, "active", p), "next food starts normally");
+                    Bukkit.getPluginManager().callEvent(new PlayerItemConsumeEvent(p, new ItemStack(Material.MILK_BUCKET), EquipmentSlot.HAND));
+                    Bukkit.getScheduler().runTaskLater(this, () -> guarded(() -> {
+                        check(!p.getPersistentDataContainer().has(key) && (boolean)call(effects, "active", p), "milk resets only cooldown during effect");
+                        PlayerItemConsumeEvent overlapping = new PlayerItemConsumeEvent(p, item("belyash"), EquipmentSlot.HAND);
+                        Bukkit.getPluginManager().callEvent(overlapping);
+                        check(overlapping.isCancelled(), "milk never permits overlapping effects");
+                        check(plain(visibleBars.get(p.getUniqueId()).name()).contains("эффект еды ещё действует"), "status explains remaining active effect");
+                        call(effects, "stop", p, false);
+                        call(effects, "showStatus", p, System.currentTimeMillis());
+                        check(!visibleBars.containsKey(p.getUniqueId()), "ready immediately after milk and effect end");
+                        p.getPersistentDataContainer().set(key, PersistentDataType.LONG, future);
+                        plugin.getConfig().set("foods.milk-resets-cooldown", false);
+                        Bukkit.getPluginManager().callEvent(new PlayerItemConsumeEvent(p, new ItemStack(Material.MILK_BUCKET), EquipmentSlot.HAND));
+                        Bukkit.getScheduler().runTaskLater(this, () -> guarded(() -> {
+                            check(p.getPersistentDataContainer().has(key), "disabled milk reset respected");
+                            plugin.getConfig().set("foods.milk-resets-cooldown", true);
+                            p.getPersistentDataContainer().remove(key);
+                            call(effects, "showStatus", p, System.currentTimeMillis());
+                            load();
+                        }), 2);
+                    }), 2);
+                }), 2);
+            }), 2);
         }), 2);
     }
     private void load() {

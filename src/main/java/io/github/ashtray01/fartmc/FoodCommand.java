@@ -24,8 +24,8 @@ final class FoodCommand implements TabExecutor {
                 if (sender instanceof Player p) items.discover(p);
                 sender.sendMessage("Рецепты FartMC (ряды верстака сверху вниз):");
                 sender.sendMessage("Беляш: пшеница/пшеница/пшеница; стейк/гнилая плоть/стейк; пшеница/хлеб/пшеница.");
-                sender.sendMessage("Хачебурек: пшеница/яйцо/пшеница; молоко/печёный картофель/молоко; пшеница/хлеб/пшеница.");
-                sender.sendMessage("Отравленный: хлеб/огненный порошок/хлеб; гнилая плоть/маринованный глаз/гнилая плоть; магмовый крем/хлеб/магмовый крем.");
+                sender.sendMessage(FoodType.KHACHEBUREK.title + ": пшеница/яйцо/пшеница; молоко/печёный картофель/молоко; пшеница/хлеб/пшеница.");
+                sender.sendMessage(FoodType.POISONED_CHEBUREK.title + ": хлеб/огненный порошок/хлеб; гнилая плоть/маринованный глаз/гнилая плоть; магмовый крем/хлеб/магмовый крем.");
             }
             case "reload" -> {
                 if (!permission(sender, "fartmc.reload")) return true;

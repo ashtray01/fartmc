@@ -5,8 +5,8 @@ import java.util.Locale;
 
 enum FoodType {
     BELYASH("belyash_station", "belyash", "Беляш с вокзала", "Газы, отравление и неожиданные пятна", 30, 45),
-    KHACHEBUREK("khacheburek", "khacheburek", "Хачебурек", "Водяная тяга и временная потеря здоровья", 12, 45),
-    POISONED_CHEBUREK("poisoned_cheburek", "poisoned-cheburek", "Отравленный чебурек", "Огненный полёт на невидимом сиденье", 15, 60);
+    KHACHEBUREK("khacheburek", "khacheburek", "Чебурек загадочный", "Водяная тяга и временная потеря здоровья", 12, 45),
+    POISONED_CHEBUREK("poisoned_cheburek", "poisoned-cheburek", "Просроченная шаурма", "Огненный полёт на невидимом сиденье", 15, 60);
 
     final String id, config, title, description;
     final int duration, cooldown;

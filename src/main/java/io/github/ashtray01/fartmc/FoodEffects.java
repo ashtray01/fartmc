@@ -1,6 +1,8 @@
 package io.github.ashtray01.fartmc;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.bossbar.BossBar;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.*;
@@ -22,6 +24,9 @@ final class FoodEffects implements Listener, AutoCloseable {
     private final Map<UUID, FoodSession> sessions = new HashMap<>();
     private final Map<UUID, BukkitTask> pending = new HashMap<>();
     private final Map<UUID, Long> landings = new HashMap<>();
+    private final Map<UUID, BukkitTask> milkTasks = new HashMap<>();
+    private record Status(Player player, BossBar bar, long totalSeconds) {}
+    private final Map<UUID, Status> statuses = new HashMap<>();
     final FoodVisuals visuals;
     final FoodProtection protection;
     private final BukkitTask task;
@@ -34,13 +39,54 @@ final class FoodEffects implements Listener, AutoCloseable {
         Bukkit.getOnlinePlayers().forEach(this::recover);
     }
     boolean active(Player p) { return sessions.containsKey(p.getUniqueId()) || pending.containsKey(p.getUniqueId()); }
+    private long deadline(Player p) { return p.getPersistentDataContainer().getOrDefault(COOLDOWN, PersistentDataType.LONG, 0L); }
+    private int remainingEffectTicks(Player p) {
+        FoodSession session = sessions.get(p.getUniqueId());
+        return session == null ? (pending.containsKey(p.getUniqueId()) ? 1 : 0) : Math.max(0, session.settings.duration() - session.age);
+    }
+    void showStatus(Player p, long now) {
+        long seconds = FoodCooldown.waitingSeconds(deadline(p), now, remainingEffectTicks(p));
+        if (p.isDead() || !plugin.foodParticipating(p) || !plugin.getConfig().getBoolean("messages.cooldown-bar-enabled", true)) {
+            hideStatus(p); return;
+        }
+        if (seconds == 0 && !active(p)) {
+            p.getPersistentDataContainer().remove(COOLDOWN);
+            if (hideStatus(p)) {
+                p.sendMessage(Component.text("Желудок готов! Можно снова есть.", NamedTextColor.GREEN));
+                if (plugin.getConfig().getBoolean("messages.actionbar-enabled", true))
+                    p.sendActionBar(Component.text("Желудок готов!", NamedTextColor.GREEN));
+            }
+            return;
+        }
+        Status status = statuses.get(p.getUniqueId());
+        if (status == null) {
+            BossBar bar = BossBar.bossBar(Component.empty(), 1, BossBar.Color.YELLOW, BossBar.Overlay.PROGRESS);
+            status = new Status(p, bar, Math.max(1, seconds));
+            statuses.put(p.getUniqueId(), status);
+            p.showBossBar(bar);
+        }
+        String suffix = deadline(p) > now
+                ? (plugin.getConfig().getBoolean("foods.milk-resets-cooldown", true) ? " • молоко сбросит кулдаун" : "")
+                : " • эффект еды ещё действует";
+        status.bar.name(Component.text("Желудок ещё не готов: " + seconds + " с" + suffix));
+        status.bar.progress((float)Math.clamp((double)seconds / status.totalSeconds, 0, 1));
+    }
+    private boolean hideStatus(Player p) {
+        Status status = statuses.remove(p.getUniqueId());
+        if (status == null) return false;
+        p.hideBossBar(status.bar); return true;
+    }
     private String unavailable(Player p, FoodType type) {
         if (!FoodSettings.read(plugin.getConfig(), type).enabled()) return "Эта еда отключена.";
         if (!p.hasPermission("fartmc.use") || !plugin.foodParticipating(p)) return "Участие выключено или нет права fartmc.use.";
         if (p.isDead() || p.getGameMode() == GameMode.SPECTATOR || p.isFlying() || p.isGliding() || p.isInsideVehicle())
             return "Сначала встаньте на землю и выйдите из транспорта.";
-        if (active(p) || p.getPersistentDataContainer().getOrDefault(COOLDOWN, PersistentDataType.LONG, 0L) > System.currentTimeMillis())
-            return "Желудок ещё не готов. Подождите немного.";
+        if (active(p)) return "Желудок ещё не готов: ещё "
+                + FoodCooldown.waitingSeconds(deadline(p), System.currentTimeMillis(), remainingEffectTicks(p))
+                + " с. Текущий эффект еды ещё действует.";
+        long seconds = FoodCooldown.seconds(deadline(p), System.currentTimeMillis());
+        if (seconds > 0) return "Желудок ещё не готов: ещё " + seconds + " с."
+                + (plugin.getConfig().getBoolean("foods.milk-resets-cooldown", true) ? " Выпейте молоко, чтобы сбросить кулдаун." : "");
         if (type == FoodType.POISONED_CHEBUREK) {
             if (p.isInWater() || !FoodMotion.safeGround(FoodMotion.ground(p.getLocation().add(0, .2, 0), 4))
                     || !FoodMotion.clear(p.getWorld(), p.getBoundingBox().clone().shift(0, .7, 0)))
@@ -53,10 +99,13 @@ final class FoodEffects implements Listener, AutoCloseable {
         FoodType type = FoodItems.type(e.getItem());
         if (type == null) return;
         String reason = unavailable(e.getPlayer(), type);
-        if (reason != null) { e.setCancelled(true); e.getPlayer().sendMessage(reason); }
+        if (reason != null) { e.setCancelled(true); e.getPlayer().sendMessage(reason); showStatus(e.getPlayer(), System.currentTimeMillis()); }
     }
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void consume(PlayerItemConsumeEvent e) {
+        if (e.getItem().getType() == Material.MILK_BUCKET && !FoodItems.marked(e.getItem())) {
+            milk(e); return;
+        }
         FoodType type = FoodItems.type(e.getItem());
         if (type == null || active(e.getPlayer())) return;
         Player player = e.getPlayer();
@@ -71,7 +120,7 @@ final class FoodEffects implements Listener, AutoCloseable {
             sessions.put(player.getUniqueId(), session);
             player.getPersistentDataContainer().set(COOLDOWN, PersistentDataType.LONG,
                     System.currentTimeMillis() + settings.cooldownMillis());
-            try { session.begin(this); }
+            try { session.begin(this); showStatus(player, System.currentTimeMillis()); }
             catch (RuntimeException ex) {
                 stop(player, false);
                 plugin.getLogger().log(java.util.logging.Level.WARNING, "Food effect could not start", ex);
@@ -79,6 +128,24 @@ final class FoodEffects implements Listener, AutoCloseable {
             }
         });
         pending.put(player.getUniqueId(), start);
+    }
+    private void milk(PlayerItemConsumeEvent e) {
+        if (!plugin.getConfig().getBoolean("foods.milk-resets-cooldown", true)) return;
+        Player p = e.getPlayer();
+        if (milkTasks.containsKey(p.getUniqueId())) return;
+        milkTasks.put(p.getUniqueId(), Bukkit.getScheduler().runTask(plugin, () -> {
+            milkTasks.remove(p.getUniqueId());
+            if (e.isCancelled() || !p.isOnline() || p.isDead()) return;
+            boolean cooling = deadline(p) > System.currentTimeMillis();
+            p.getPersistentDataContainer().remove(COOLDOWN);
+            if (cooling) {
+                p.sendMessage(active(p) ? "Молоко сбросило кулдаун. Дождитесь окончания текущего эффекта еды."
+                        : "Молоко сбросило кулдаун. Желудок готов! Можно снова есть.");
+                if (!active(p)) hideStatus(p); // Avoid a second readiness message.
+            }
+            showStatus(p, System.currentTimeMillis());
+            // Minecraft consumes the milk and returns the bucket; do not edit inventory.
+        }));
     }
     private void update() {
         tick++; visuals.tick(tick);
@@ -92,6 +159,10 @@ final class FoodEffects implements Listener, AutoCloseable {
                 stop(session.player, session.player.isDead());
                 plugin.getLogger().log(java.util.logging.Level.SEVERE, "Food effect safely stopped", ex);
             }
+        }
+        if (tick % 20 == 0) {
+            long now = System.currentTimeMillis();
+            Bukkit.getOnlinePlayers().forEach(p -> showStatus(p, now));
         }
         landings.entrySet().removeIf(e -> {
             Player p = Bukkit.getPlayer(e.getKey());
@@ -109,6 +180,7 @@ final class FoodEffects implements Listener, AutoCloseable {
         if (session != null) session.stop(this, dead);
     }
     void stopAll() {
+        milkTasks.values().forEach(BukkitTask::cancel); milkTasks.clear();
         pending.values().forEach(BukkitTask::cancel); pending.clear();
         for (FoodSession s : List.copyOf(sessions.values())) stop(s.player, s.player.isDead());
         visuals.close();
@@ -135,6 +207,7 @@ final class FoodEffects implements Listener, AutoCloseable {
         }
         data.remove(HEALTH_CREDIT); data.remove(ORIGINAL_HEALTH);
         if (data.has(LANDING)) landing(p);
+        showStatus(p, System.currentTimeMillis());
     }
     void fart(Player p, FartLogic.Style style) {
         if (plugin.getConfig().getBoolean("effects.sounds-enabled", true)) plugin.foodSound(p, style);
@@ -166,9 +239,14 @@ final class FoodEffects implements Listener, AutoCloseable {
         if (e.getRightClicked().getScoreboardTags().contains("fartmc_food_seat")) e.setCancelled(true);
     }
     @EventHandler public void join(PlayerJoinEvent e) { recover(e.getPlayer()); }
-    @EventHandler public void quit(PlayerQuitEvent e) { stop(e.getPlayer(), false); landings.remove(e.getPlayer().getUniqueId()); }
+    @EventHandler public void quit(PlayerQuitEvent e) {
+        Player p = e.getPlayer();
+        stop(p, false); landings.remove(p.getUniqueId()); hideStatus(p);
+        BukkitTask milk = milkTasks.remove(p.getUniqueId()); if (milk != null) milk.cancel();
+    }
     @EventHandler public void death(PlayerDeathEvent e) {
         stop(e.getEntity(), true); landings.remove(e.getEntity().getUniqueId()); e.getEntity().getPersistentDataContainer().remove(LANDING);
+        hideStatus(e.getEntity());
     }
     @EventHandler public void world(PlayerChangedWorldEvent e) { stop(e.getPlayer(), false); }
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -182,5 +260,9 @@ final class FoodEffects implements Listener, AutoCloseable {
     }
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void chunk(ChunkUnloadEvent e) { visuals.removeChunk(e.getChunk()); }
-    @Override public void close() { stopAll(); task.cancel(); landings.clear(); HandlerList.unregisterAll(this); }
+    @Override public void close() {
+        stopAll(); task.cancel(); landings.clear();
+        for (Status status : List.copyOf(statuses.values())) hideStatus(status.player);
+        HandlerList.unregisterAll(this);
+    }
 }

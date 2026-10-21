@@ -3,11 +3,13 @@ package io.github.ashtray01.fartmc;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.*;
 import org.bukkit.event.inventory.*;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.inventory.*;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.recipe.CraftingBookCategory;
@@ -66,7 +68,7 @@ final class FoodItems implements Listener {
             recipe.setCategory(CraftingBookCategory.MISC);
             if (!Bukkit.addRecipe(recipe)) throw new IllegalStateException("Cannot register " + type.key());
         }
-        Bukkit.getOnlinePlayers().forEach(this::discover);
+        Bukkit.getOnlinePlayers().forEach(p -> { discover(p); refreshNames(p.getInventory()); });
     }
     private void ingredient(ShapedRecipe recipe, char symbol, Material material) {
         recipe.setIngredient(symbol, new RecipeChoice.ExactChoice(new ItemStack(material)));
@@ -75,7 +77,31 @@ final class FoodItems implements Listener {
     void discover(Player p) {
         for (FoodType type : FoodType.values()) if (Bukkit.getRecipe(type.key()) != null) p.discoverRecipe(type.key());
     }
-    @EventHandler public void join(PlayerJoinEvent e) { discover(e.getPlayer()); }
+    boolean refreshName(ItemStack item) {
+        FoodType type = type(item);
+        if (type == null) return false;
+        ItemMeta meta = item.getItemMeta();
+        if (meta.displayName() == null) return false;
+        String previous = PlainTextComponentSerializer.plainText().serialize(meta.displayName());
+        boolean legacy = (type == FoodType.KHACHEBUREK && previous.equals("Хачебурек"))
+                || (type == FoodType.POISONED_CHEBUREK && previous.equals("Отравленный чебурек"));
+        if (!legacy) return false; // Preserve names chosen by players with an anvil.
+        meta.displayName(Component.text(type.title, NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
+        item.setItemMeta(meta);
+        return true;
+    }
+    private void refreshNames(Inventory inventory) {
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            ItemStack item = inventory.getItem(slot);
+            if (refreshName(item)) inventory.setItem(slot, item);
+        }
+    }
+    @EventHandler public void join(PlayerJoinEvent e) { discover(e.getPlayer()); refreshNames(e.getPlayer().getInventory()); }
+    @EventHandler(ignoreCancelled = true) public void open(InventoryOpenEvent e) { refreshNames(e.getInventory()); }
+    @EventHandler(ignoreCancelled = true) public void pickup(EntityPickupItemEvent e) {
+        ItemStack item = e.getItem().getItemStack();
+        if (refreshName(item)) e.getItem().setItemStack(item);
+    }
     private boolean ours(Recipe recipe) {
         return recipe instanceof Keyed keyed && Arrays.stream(FoodType.values()).anyMatch(t -> t.key().equals(keyed.getKey()));
     }
