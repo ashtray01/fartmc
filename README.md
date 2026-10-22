@@ -17,6 +17,8 @@
 
 **[Скачать](https://github.com/ashtray01/fartmc/releases/latest) · [Как играть](#три-способа-нарушить-тишину) · [Установить](#пригласить-на-свой-сервер)**
 
+[Видео работы плагина](https://www.youtube.com/watch?v=HyN-IHkMl2A)
+
 </div>
 
 ---
